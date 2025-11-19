@@ -18,12 +18,6 @@ vi.mock('../lib/api', () => ({
   },
 }))
 
-const mockUser = {
-  id: 'teacher1',
-  name: 'Professor Teste',
-  email: 'professor@teste.com',
-  role: 'TEACHER' as const,
-}
 
 const mockAssignments = [
   {

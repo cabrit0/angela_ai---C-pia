@@ -100,11 +100,6 @@ const UserIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-const DocumentTextIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-)
 
 const ClipboardListIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -297,29 +292,6 @@ const ReportsPage: React.FC = () => {
     }
   }
 
-  const handleGetQuizAttempts = async () => {
-    if (!selectedQuiz) {
-      setError('Por favor, selecione um quiz')
-      return
-    }
-    
-    setLoading(true)
-    setError(null)
-    
-    try {
-      const attempts = await statisticsApi.getQuizAttempts(selectedQuiz)
-      setQuizAttempts(attempts)
-    } catch (err: any) {
-      if (err.code === 404) {
-        setError('Endpoint de tentativas de quiz não encontrado (404). Verifique se o servidor foi atualizado com a implementação mais recente.')
-      } else {
-        setError('Erro ao carregar tentativas do quiz. Tente novamente.')
-      }
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleGetAssignmentStatistics = async () => {
     if (!selectedAssignment) {
@@ -527,18 +499,6 @@ const ReportsPage: React.FC = () => {
     return quizTitle.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
-  // Apply date filters to data
-  const applyDateFilter = (data: any[]) => {
-    if (!dateFilter.startDate && !dateFilter.endDate) return data
-    
-    return data.filter(item => {
-      const itemDate = new Date(item.submittedAt || item.startedAt || item.createdAt)
-      const start = dateFilter.startDate ? new Date(dateFilter.startDate) : new Date('1900-01-01')
-      const end = dateFilter.endDate ? new Date(dateFilter.endDate) : new Date('2100-12-31')
-      
-      return itemDate >= start && itemDate <= end
-    })
-  }
 
   return (
     <div className="reports-container">

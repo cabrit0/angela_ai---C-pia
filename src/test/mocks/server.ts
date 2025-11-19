@@ -342,7 +342,7 @@ export const handlers = [
     })
   }),
 
-  http.post('/api/shares/:shareId/fork', async ({ params, request }) => {
+  http.post('/api/shares/:shareId/fork', async ({ request }) => {
     const body = await request.json() as any
     return new Response(JSON.stringify({ id: 'forked-quiz', ...body }), {
       status: 201,
@@ -355,7 +355,7 @@ export const handlers = [
   }),
 
   // Classes students endpoints
-  http.get('/api/classes/:classId/students', ({ params }) => {
+  http.get('/api/classes/:classId/students', () => {
     const mockStudents = [
       {
         id: 'student1',
@@ -376,8 +376,7 @@ export const handlers = [
     })
   }),
 
-  http.post('/api/classes/:classId/students', async ({ request }) => {
-    const body = await request.json() as any
+  http.post('/api/classes/:classId/students', async () => {
     return new Response(JSON.stringify({ success: true, message: 'Aluno matriculado com sucesso' }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' }

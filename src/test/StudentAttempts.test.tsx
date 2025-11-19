@@ -13,19 +13,6 @@ vi.mock('../lib/api', () => ({
   getQuizzes: vi.fn(),
 }))
 
-const mockTeacher = {
-  id: 'teacher1',
-  name: 'Professor Teste',
-  email: 'professor@teste.com',
-  role: 'TEACHER' as const,
-}
-
-const mockStudent = {
-  id: 'student1',
-  name: 'Aluno Teste',
-  email: 'aluno@teste.com',
-  role: 'STUDENT' as const,
-}
 
 const mockAttempts = [
   {

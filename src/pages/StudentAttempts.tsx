@@ -59,10 +59,6 @@ const StudentAttemptsPage: React.FC = () => {
     }
   };
 
-  const getQuizTitle = (quizId: string) => {
-    const quiz = quizzes.find(q => q.id === quizId);
-    return quiz ? quiz.title : quizId;
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {

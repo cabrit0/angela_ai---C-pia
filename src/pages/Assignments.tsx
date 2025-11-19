@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
 import { assignmentsApi, classesApi, getQuizzes, usersApi } from '../lib/api';
 import type { ApiAssignment, ApiClass } from '../lib/api/httpClient';

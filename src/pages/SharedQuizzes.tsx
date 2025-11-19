@@ -150,7 +150,6 @@ const SharedQuizzesPage: React.FC = () => {
     }
   };
 
-  const isTeacher = user?.role === 'TEACHER' || user?.role === 'ADMIN';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 mobile-safe-top mobile-safe-bottom">
