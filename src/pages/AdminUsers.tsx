@@ -39,6 +39,18 @@ const formatDateTime = (value?: string): string => {
   }
 }
 
+const roleOptions: { value: UserRole; label: string }[] = [
+  { value: 'ADMIN', label: 'Administrador' },
+  { value: 'TEACHER', label: 'Professor' },
+  { value: 'STUDENT', label: 'Aluno' },
+]
+
+const statusOptions: { value: UserStatus; label: string }[] = [
+  { value: 'ACTIVE', label: statusLabels.ACTIVE },
+  { value: 'PENDING', label: statusLabels.PENDING },
+  { value: 'REJECTED', label: statusLabels.REJECTED },
+]
+
 const AdminUsers: React.FC = () => {
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -48,6 +60,16 @@ const AdminUsers: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL')
   const [searchTerm, setSearchTerm] = useState('')
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isCreatingUser, setIsCreatingUser] = useState(false)
+  const [createFormError, setCreateFormError] = useState<string | null>(null)
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'TEACHER' as UserRole,
+    status: 'ACTIVE' as UserStatus,
+  })
 
   const loadUsers = useCallback(async () => {
     setIsLoading(true)
@@ -127,6 +149,48 @@ const AdminUsers: React.FC = () => {
       'Conta voltou ao estado pendente.',
     )
 
+  const handleStatusChange = async (userId: string, nextStatus: UserStatus) => {
+    const user = users.find((u) => u.id === userId)
+    if (!user || user.status === nextStatus) return
+    await runAdminAction(
+      userId,
+      () => httpClient.adminUpdateUserStatus(userId, nextStatus),
+      `Estado atualizado para ${statusLabels[nextStatus]}.`,
+    )
+  }
+
+  const openCreateModal = () => {
+    setCreateForm({ name: '', email: '', password: '', role: 'TEACHER', status: 'ACTIVE' })
+    setCreateFormError(null)
+    setIsCreateModalOpen(true)
+  }
+
+  const handleCreateUser = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setCreateFormError(null)
+    if (!createForm.name.trim() || !createForm.email.trim() || !createForm.password || createForm.password.length < 6) {
+      setCreateFormError('Nome, email e palavra-passe (mín. 6) são obrigatórios.')
+      return
+    }
+    setIsCreatingUser(true)
+    try {
+      await httpClient.adminCreateUser({
+        name: createForm.name.trim(),
+        email: createForm.email.trim(),
+        password: createForm.password,
+        role: createForm.role,
+        status: createForm.status,
+      })
+      setInfoMessage('Utilizador criado com sucesso.')
+      setIsCreateModalOpen(false)
+      await loadUsers()
+    } catch (err: any) {
+      setCreateFormError(err?.message || 'Não foi possível criar o utilizador.')
+    } finally {
+      setIsCreatingUser(false)
+    }
+  }
+
   return (
     <div className="container mx-auto max-w-6xl py-8 space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -136,14 +200,23 @@ const AdminUsers: React.FC = () => {
             Aprove ou rejeite novos registos e acompanhe o estado das contas.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => loadUsers()}
-          className="inline-flex items-center rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-          disabled={isLoading}
-        >
-          Atualizar
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => loadUsers()}
+            className="inline-flex items-center rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            disabled={isLoading}
+          >
+            Atualizar
+          </button>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600"
+          >
+            Criar utilizador
+          </button>
+        </div>
       </div>
 
       {infoMessage && (
@@ -266,9 +339,23 @@ const AdminUsers: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[user.status]}`}>
-                        {statusLabels[user.status]}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[user.status]}`}>
+                          {statusLabels[user.status]}
+                        </span>
+                        <select
+                          value={user.status}
+                          onChange={(event) => handleStatusChange(user.id, event.target.value as UserStatus)}
+                          className="rounded-md border border-gray-200 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                          disabled={pendingActionId === user.id}
+                        >
+                          {statusOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                       {formatDateTime(user.createdAt)}
@@ -325,6 +412,16 @@ const AdminUsers: React.FC = () => {
                             Suspender
                           </button>
                         )}
+                        {user.status !== 'ACTIVE' && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(user.id)}
+                            disabled={pendingActionId === user.id}
+                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/30"
+                          >
+                            Eliminar
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -334,9 +431,115 @@ const AdminUsers: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Criar novo utilizador</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Defina credenciais e perfil.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+            <form className="space-y-4" onSubmit={handleCreateUser}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm text-gray-700 dark:text-gray-200">
+                  Nome
+                  <input
+                    type="text"
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    value={createForm.name}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
+                    required
+                  />
+                </label>
+                <label className="text-sm text-gray-700 dark:text-gray-200">
+                  Email
+                  <input
+                    type="email"
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    value={createForm.email}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
+                    required
+                  />
+                </label>
+              </div>
+              <label className="text-sm text-gray-700 dark:text-gray-200">
+                Palavra-passe
+                <input
+                  type="password"
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  value={createForm.password}
+                  onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))}
+                  placeholder="Mínimo 6 caracteres"
+                  required
+                />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm text-gray-700 dark:text-gray-200">
+                  Perfil
+                  <select
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    value={createForm.role}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, role: event.target.value as UserRole }))}
+                  >
+                    {roleOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm text-gray-700 dark:text-gray-200">
+                  Estado inicial
+                  <select
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    value={createForm.status}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, status: event.target.value as UserStatus }))}
+                  >
+                    {statusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {createFormError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200">
+                  {createFormError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                  disabled={isCreatingUser}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-primary-500 dark:hover:bg-primary-600"
+                  disabled={isCreatingUser}
+                >
+                  {isCreatingUser ? 'A criar...' : 'Criar utilizador'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export default AdminUsers
-

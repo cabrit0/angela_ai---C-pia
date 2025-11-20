@@ -45,7 +45,7 @@ const NotFound = () => (
 )
 
 // Protected route component
-const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'TEACHER' | 'STUDENT' | 'ADMIN' }) => {
+const ProtectedRoute = ({ children, requiredRoles }: { children: React.ReactNode; requiredRoles?: Array<'TEACHER' | 'STUDENT' | 'ADMIN'> }) => {
   const { isAuthenticated, isLoading, requireRole } = useAuth()
   
   if (isLoading) {
@@ -65,7 +65,7 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
     return <Navigate to="/auth" replace />
   }
   
-  if (requiredRole && !requireRole(requiredRole)) {
+  if (requiredRoles && requiredRoles.length > 0 && !requireRole(...requiredRoles)) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
@@ -73,7 +73,7 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md dark:bg-yellow-900/20 dark:border-yellow-800">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Acesso Restrito</h2>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Esta área requer permissões de {requiredRole === 'TEACHER' ? 'Professor' : requiredRole === 'STUDENT' ? 'Aluno' : 'Administrador'}.
+                Esta área requer permissões de {requiredRoles.join(' / ')}.
               </p>
               <button
                 onClick={() => window.location.href = '/auth'}
@@ -149,7 +149,7 @@ export default function Router() {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute requiredRole="TEACHER">
+          <ProtectedRoute requiredRoles={['TEACHER', 'ADMIN']}>
             <Layout title="O meu painel"><DashboardPage /></Layout>
           </ProtectedRoute>
         }
@@ -157,7 +157,7 @@ export default function Router() {
       <Route
         path="/reports"
         element={
-          <ProtectedRoute requiredRole="TEACHER">
+          <ProtectedRoute requiredRoles={['TEACHER', 'ADMIN']}>
             <Layout title="Relatórios e Estatísticas"><Reports /></Layout>
           </ProtectedRoute>
         }
@@ -165,7 +165,7 @@ export default function Router() {
       <Route
         path="/classes"
         element={
-          <ProtectedRoute requiredRole="TEACHER">
+          <ProtectedRoute requiredRoles={['TEACHER', 'ADMIN']}>
             <Layout title="Gestão de Turmas"><Classes /></Layout>
           </ProtectedRoute>
         }
@@ -173,7 +173,7 @@ export default function Router() {
       <Route
         path="/assignments"
         element={
-          <ProtectedRoute requiredRole="TEACHER">
+          <ProtectedRoute requiredRoles={['TEACHER', 'ADMIN']}>
             <Layout title="Gestão de Assignments"><Assignments /></Layout>
           </ProtectedRoute>
         }
@@ -181,7 +181,7 @@ export default function Router() {
       <Route
         path="/shared"
         element={
-          <ProtectedRoute requiredRole="TEACHER">
+          <ProtectedRoute requiredRoles={['TEACHER', 'ADMIN']}>
             <Layout title="Quizzes Compartilhados"><SharedQuizzes /></Layout>
           </ProtectedRoute>
         }
@@ -189,7 +189,7 @@ export default function Router() {
       <Route
         path="/admin/users"
         element={
-          <ProtectedRoute requiredRole="ADMIN">
+          <ProtectedRoute requiredRoles={['ADMIN']}>
             <Layout title="Gestão de contas"><AdminUsers /></Layout>
           </ProtectedRoute>
         }
@@ -197,7 +197,7 @@ export default function Router() {
       <Route
         path="/create"
         element={
-          <ProtectedRoute requiredRole="TEACHER">
+          <ProtectedRoute requiredRoles={['TEACHER', 'ADMIN']}>
             <Layout showBackButton title="Criar Quiz"><Create /></Layout>
           </ProtectedRoute>
         }
@@ -205,7 +205,7 @@ export default function Router() {
       <Route
         path="/quiz/edit/:quizId"
         element={
-          <ProtectedRoute requiredRole="TEACHER">
+          <ProtectedRoute requiredRoles={['TEACHER', 'ADMIN']}>
             <Layout showBackButton title="Editar Quiz"><EditQuiz /></Layout>
           </ProtectedRoute>
         }
@@ -215,7 +215,7 @@ export default function Router() {
       <Route
         path="/quiz/:quizId"
         element={
-          <ProtectedRoute requiredRole="STUDENT">
+          <ProtectedRoute requiredRoles={['STUDENT']}>
             <Layout showBackButton title="Quiz"><QuizPage /></Layout>
           </ProtectedRoute>
         }
@@ -223,7 +223,7 @@ export default function Router() {
       <Route
         path="/results"
         element={
-          <ProtectedRoute requiredRole="STUDENT">
+          <ProtectedRoute requiredRoles={['STUDENT']}>
             <Layout showBackButton title="Resultados"><Results /></Layout>
           </ProtectedRoute>
         }
@@ -231,7 +231,7 @@ export default function Router() {
       <Route
         path="/progress"
         element={
-          <ProtectedRoute requiredRole="STUDENT">
+          <ProtectedRoute requiredRoles={['STUDENT']}>
             <Layout title="Meu Progresso"><StudentProgress /></Layout>
           </ProtectedRoute>
         }

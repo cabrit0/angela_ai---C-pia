@@ -320,6 +320,26 @@ async function adminDeleteUser(userId: string): Promise<void> {
   )
 }
 
+async function adminCreateUser(input: {
+  name: string
+  email: string
+  password: string
+  role: UserRole
+  status?: UserStatus
+}): Promise<AuthUser> {
+  return requestWithAuthRetry<AuthUser>(`${API_BASE_URL}/api/admin/users`, {
+    method: 'POST',
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      role: input.role,
+      status: input.status,
+    }),
+  })
+}
+
 /**
  * TIPOS ALINHADOS COM API (simplificados para o frontend)
  */
@@ -1114,6 +1134,7 @@ export const httpClient = {
   adminRejectUser,
   adminUpdateUserStatus,
   adminDeleteUser,
+  adminCreateUser,
   // Quizzes
   fetchMyQuizzes,
   fetchQuizById,
