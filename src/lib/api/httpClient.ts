@@ -666,6 +666,8 @@ export async function createQuizApi(input: {
   title: string
   description?: string
   metadata?: Record<string, unknown> | null
+  supportText?: string
+  youtubeVideos?: string[]
 }): Promise<{ id: string }> {
   const data = await requestWithAuthRetry<ApiQuizSummary>(
     `${API_BASE_URL}/api/quizzes`,
@@ -676,6 +678,8 @@ export async function createQuizApi(input: {
         title: input.title,
         description: input.description ?? '',
         metadata: input.metadata ?? null,
+        supportText: input.supportText,
+        youtubeVideos: input.youtubeVideos,
       }),
     }
   )
@@ -690,6 +694,8 @@ export async function updateQuizApi(
     description?: string | null
     metadata?: Record<string, unknown> | null
     isPublished?: boolean
+    supportText?: string
+    youtubeVideos?: string[]
   }>,
 ): Promise<ApiQuizSummary> {
   return requestWithAuthRetry<ApiQuizSummary>(`${API_BASE_URL}/api/quizzes/${id}`, {

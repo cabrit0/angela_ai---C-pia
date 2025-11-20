@@ -340,6 +340,8 @@ function EditQuiz() {
         title: quizData.title,
         description: quizData.subject,
         grade: quizData.grade,
+        supportText: quiz.supportText,
+        youtubeVideos: normalizedVideos,
       })
       editQuiz(quizId, {
         ...quiz,
@@ -476,6 +478,8 @@ function EditQuiz() {
         description: quiz.subject,
         grade: quiz.grade,
         isPublished: quiz.isPublished,
+        supportText: quiz.supportText,
+        youtubeVideos: normalizedVideos,
       })
 
       // Atualiza o estado local
@@ -897,12 +901,22 @@ function EditQuiz() {
                   <SupportTextForm
                     quiz={quiz}
                     questions={questions}
-                    onUpdateSupportText={(supportText) => {
+                    onUpdateSupportText={async (supportText) => {
                       setQuiz(prev => prev ? { ...prev, supportText } : null);
                       if (quizId && quiz) {
                         editQuiz(quizId, { ...quiz, supportText });
+
+                        // Atualiza via API
+                        try {
+                          await updateQuizApi({
+                            id: quizId,
+                            supportText: supportText,
+                          });
+                          console.log('[EditQuiz] Support text saved to API');
+                        } catch (error) {
+                          console.error('[EditQuiz] Error saving support text to API:', error);
+                        }
                       }
-                      // Não marca como alterações não salvas, pois o texto de suporte é sincronizado com o store
                     }}
                     aiProvider={selectedProvider}
                     aiToken={

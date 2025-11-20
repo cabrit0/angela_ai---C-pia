@@ -173,20 +173,24 @@ const ReportsPage: React.FC = () => {
     const loadData = async () => {
       try {
         if (user?.role === 'TEACHER' || user?.role === 'ADMIN') {
+          console.log('[Reports] Loading data for user:', user.role)
           const [quizzesData, classesData, assignmentsData] = await Promise.all([
             getQuizzes(),
             classesApi.listForCurrentUser(),
             assignmentsApi.listForCurrentUser()
           ])
+          console.log('[Reports] Quizzes loaded:', quizzesData?.length || 0, quizzesData)
+          console.log('[Reports] Classes loaded:', classesData?.length || 0, classesData)
+          console.log('[Reports] Assignments loaded:', assignmentsData?.length || 0, assignmentsData)
           setQuizzes(quizzesData || [])
           setClasses(classesData || [])
           setAssignments(assignmentsData || [])
         }
       } catch (err) {
-        console.error('Error loading data:', err)
+        console.error('[Reports] Error loading data:', err)
       }
     }
-    
+
     loadData()
   }, [user])
 
@@ -585,45 +589,52 @@ const ReportsPage: React.FC = () => {
                   </div>
                 </div>
                
-                <div className="reports-search-container">
-                  <div className="flex flex-col gap-4">
-                    {/* Search and Filter Controls */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="relative flex-1">
-                        <div className="reports-search-icon">
-                          <SearchIcon className="h-5 w-5 text-gray-400" />
+                {quizzes.length === 0 ? (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                      ℹ️ Nenhum quiz encontrado. Crie um quiz primeiro para ver estatísticas.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="reports-search-container">
+                    <div className="flex flex-col gap-4">
+                      {/* Search and Filter Controls */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
+                          <div className="reports-search-icon">
+                            <SearchIcon className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Buscar quiz..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onFocus={() => setShowDropdown(true)}
+                            className="input reports-search-input"
+                          />
                         </div>
-                        <input
-                          type="text"
-                          placeholder="Buscar quiz..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          onFocus={() => setShowDropdown(true)}
-                          className="input reports-search-input"
-                        />
+                        <button
+                          onClick={() => setShowFilters(!showFilters)}
+                          className="btn btn-secondary flex items-center gap-2"
+                        >
+                          <CalendarIcon className="w-4 h-4" />
+                          Filtros
+                        </button>
+                        <button
+                          onClick={handleGetQuizStatistics}
+                          disabled={loading || !selectedQuiz}
+                          className="btn btn-primary btn-hover-bounce"
+                        >
+                          {loading ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Carregando...
+                            </>
+                          ) : (
+                            'Buscar Estatísticas'
+                          )}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className="btn btn-secondary flex items-center gap-2"
-                      >
-                        <CalendarIcon className="w-4 h-4" />
-                        Filtros
-                      </button>
-                      <button
-                        onClick={handleGetQuizStatistics}
-                        disabled={loading || !selectedQuiz}
-                        className="btn btn-primary btn-hover-bounce"
-                      >
-                        {loading ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Carregando...
-                          </>
-                        ) : (
-                          'Buscar Estatísticas'
-                        )}
-                      </button>
-                    </div>
 
                     {/* Date Filters */}
                     {showFilters && (
@@ -698,8 +709,9 @@ const ReportsPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+                )}
 
-                {selectedQuiz && !showDropdown && (
+                {quizzes.length > 0 && selectedQuiz && !showDropdown && (
                   <div className="reports-selected-info reports-selected-info-primary">
                     <div className="reports-selected-info-content">
                       <div>
@@ -969,23 +981,30 @@ const ReportsPage: React.FC = () => {
                     <p className="reports-card-description">Desempenho geral por turma</p>
                   </div>
                 </div>
-               
-                <div className="reports-search-container">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                      <div className="reports-search-icon">
-                        <SearchIcon className="h-5 w-5 text-gray-400" />
+
+                {classes.length === 0 ? (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                      ℹ️ Nenhuma turma encontrada. Crie uma turma primeiro para ver estatísticas.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="reports-search-container">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1">
+                        <div className="reports-search-icon">
+                          <SearchIcon className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Buscar turma..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onFocus={() => setShowDropdown(true)}
+                          className="input reports-search-input"
+                        />
                       </div>
-                      <input
-                        type="text"
-                        placeholder="Buscar turma..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onFocus={() => setShowDropdown(true)}
-                        className="input reports-search-input"
-                      />
-                    </div>
-                    <button
+                      <button
                       onClick={handleGetClassStatistics}
                       disabled={loading || !selectedClass}
                       className="btn btn-primary btn-hover-bounce"
@@ -1038,8 +1057,9 @@ const ReportsPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+                )}
 
-                {selectedClass && !showDropdown && (
+                {classes.length > 0 && selectedClass && !showDropdown && (
                   <div className="reports-selected-info reports-selected-info-blue">
                     <div className="reports-selected-info-content">
                       <div>
@@ -1193,21 +1213,35 @@ const ReportsPage: React.FC = () => {
                     <p className="reports-card-description">Histórico de tentativas por aluno</p>
                   </div>
                 </div>
-               
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Student Selection */}
-                  <div className="relative">
-                    <div className="reports-search-icon">
-                      <SearchIcon className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Buscar aluno..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onFocus={() => setShowDropdown(true)}
-                      className="input reports-search-input"
-                    />
+
+                {!selectedClass ? (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                      ℹ️ Selecione uma turma primeiro na aba "Estatísticas da Turma" para ver os alunos.
+                    </p>
+                  </div>
+                ) : students.length === 0 ? (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                      ℹ️ Nenhum aluno encontrado nesta turma. Adicione alunos à turma primeiro.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Student Selection */}
+                      <div className="relative">
+                      <div className="reports-search-icon">
+                        <SearchIcon className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Buscar aluno..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onFocus={() => setShowDropdown(true)}
+                        className="input reports-search-input"
+                      />
                    
                     {/* Dropdown for student selection */}
                     {showDropdown && searchTerm && (
@@ -1272,25 +1306,27 @@ const ReportsPage: React.FC = () => {
                     />
                   </div>
                 </div>
-               
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={handleGetStudentAttempts}
-                    disabled={loading || !selectedStudent}
-                    className="btn btn-primary btn-hover-bounce"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Carregando...
-                      </>
-                    ) : (
-                      'Buscar Tentativas'
-                    )}
-                  </button>
-                </div>
 
-                {selectedStudent && (
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={handleGetStudentAttempts}
+                      disabled={loading || !selectedStudent}
+                      className="btn btn-primary btn-hover-bounce"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Carregando...
+                        </>
+                      ) : (
+                        'Buscar Tentativas'
+                      )}
+                    </button>
+                  </div>
+                  </>
+                )}
+
+                {students.length > 0 && selectedStudent && (
                   <div className="reports-selected-info reports-selected-info-green">
                     <div className="reports-selected-info-content">
                       <div>

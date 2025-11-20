@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth/AuthContext'
 import EmptyState from '../components/EmptyState'
 import QuizCard from '../components/QuizCard'
 import { importMultipleQuizzesFromFile } from '../lib/utils/importExport'
-import { getQuizzes, getQuizById, assignmentsApi, createQuiz as createQuizApi, createQuestion as createQuestionApi } from '../lib/api'
+import { getQuizzes, getQuizById, assignmentsApi, attemptsApi, createQuiz as createQuizApi, createQuestion as createQuestionApi } from '../lib/api'
 import type { Question } from '../types'
 
 // SVG Icon Components
@@ -142,16 +142,23 @@ function Home() {
   }
 
 
-  const handleStartAssignment = (assignmentId: string, quizId: string) => {
+  const handleStartAssignment = async (assignmentId: string, quizId: string) => {
     // Validate quiz ID before starting assignment
     if (!quizId || quizId === 'undefined' || quizId === 'null' || quizId.trim() === '') {
       console.error('[Home] Invalid quiz ID for assignment:', quizId)
       showNotification('Não é possível iniciar o quiz: ID inválido.', 'error')
       return
     }
-    
-    console.log('[Home] Starting assignment for quiz with ID:', quizId)
-    navigate(`/quiz/${quizId}`, { state: { assignmentId } })
+
+    try {
+      console.log('[Home] Creating attempt for quiz:', quizId, 'assignment:', assignmentId)
+      const attempt = await attemptsApi.start(quizId, assignmentId)
+      console.log('[Home] Attempt created successfully:', attempt.id)
+      navigate(`/quiz/${quizId}`, { state: { assignmentId, attemptId: attempt.id } })
+    } catch (error) {
+      console.error('[Home] Error creating attempt:', error)
+      showNotification('Erro ao iniciar o quiz: ' + (error as any).message, 'error')
+    }
   }
 
   const handleImportQuiz = () => {

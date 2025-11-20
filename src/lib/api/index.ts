@@ -83,10 +83,18 @@ export async function createQuiz(input: {
   title: string
   description?: string
   grade?: string
+  supportText?: string
+  youtubeVideos?: string[]
 }): Promise<{ id: string }> {
   const metadata =
     input.grade && input.grade.trim().length > 0 ? { grade: input.grade.trim() } : undefined
-  return createQuizApi({ title: input.title, description: input.description, metadata })
+  return createQuizApi({
+    title: input.title,
+    description: input.description,
+    metadata,
+    supportText: input.supportText,
+    youtubeVideos: input.youtubeVideos,
+  })
 }
 
 export async function updateQuiz(input: {
@@ -95,6 +103,8 @@ export async function updateQuiz(input: {
   description?: string
   grade?: string
   isPublished?: boolean
+  supportText?: string
+  youtubeVideos?: string[]
 }): Promise<void> {
   const metadata =
     input.grade !== undefined
@@ -107,6 +117,8 @@ export async function updateQuiz(input: {
     description: input.description,
     metadata,
     isPublished: input.isPublished,
+    supportText: input.supportText,
+    youtubeVideos: input.youtubeVideos,
   })
 }
 

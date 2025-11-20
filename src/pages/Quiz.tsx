@@ -118,7 +118,8 @@ function QuizPage() {
   const [showSupport, setShowSupport] = useState(true)
   const [startTime, setStartTime] = useState<number>(Date.now())
   const [elapsedTime, setElapsedTime] = useState(0)
-  const [attemptId] = useState<string | null>((location.state as any)?.attemptId || null)
+  const [attemptId, setAttemptId] = useState<string | null>((location.state as any)?.attemptId || null)
+  const [assignmentId] = useState<string | null>((location.state as any)?.assignmentId || null)
 
 
   useEffect(() => {
@@ -190,6 +191,22 @@ function QuizPage() {
       navigate('/')
     }
   }, [quizId, quizzes, navigate])
+
+  // Se abriu o quiz a partir de um assignment sem attemptId, cria um attempt automaticamente
+  useEffect(() => {
+    const startAttemptIfNeeded = async () => {
+      if (!quizId) return
+      if (attemptId) return
+      if (!assignmentId) return
+      try {
+        const attempt = await attemptsApi.start(quizId, assignmentId)
+        setAttemptId(attempt.id)
+      } catch (err) {
+        console.error('[Quiz] falha ao iniciar attempt automaticamente', err)
+      }
+    }
+    void startAttemptIfNeeded()
+  }, [quizId, assignmentId, attemptId])
 
   // Update elapsed time
   useEffect(() => {

@@ -13,6 +13,7 @@ import AiProviderSelector from '../components/AiProviderSelector';
 import { loadSettings, saveQuizzes, loadQuizzes } from '../lib/utils/storage';
 import {
   createQuiz as createQuizApi,
+  updateQuiz as updateQuizApi,
   createQuestion as createQuestionApi,
   updateQuestion as updateQuestionApi,
   deleteQuestion as deleteQuestionApi,
@@ -147,6 +148,8 @@ const Create: React.FC = () => {
         title: data.title,
         description: data.subject || '',
         grade: data.grade || '',
+        supportText: data.supportText,
+        youtubeVideos: data.youtubeVideos,
       });
 
       setCurrentQuizId(id);
@@ -874,13 +877,24 @@ const Create: React.FC = () => {
                       updatedAt: Date.now()
                     }}
                     questions={quizData.questions}
-                    onUpdateSupportText={(supportText) => {
+                    onUpdateSupportText={async (supportText) => {
                       setQuizData(prev => ({ ...prev, supportText }));
                       if (currentQuizId) {
                         const currentQuiz = quizzes.find(q => q.id === currentQuizId);
                         if (currentQuiz) {
-                          // Atualização local via store para manter compat até existir endpoint PATCH.
+                          // Atualiza o store local
                           editQuiz(currentQuizId, { ...currentQuiz, supportText });
+
+                          // Atualiza via API
+                          try {
+                            await updateQuizApi({
+                              id: currentQuizId,
+                              supportText: supportText,
+                            });
+                            console.log('[Create] Support text saved to API');
+                          } catch (error) {
+                            console.error('[Create] Error saving support text to API:', error);
+                          }
                         }
                       }
                     }}
