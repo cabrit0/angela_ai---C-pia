@@ -48,10 +48,26 @@ const ChartIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const ShieldCheckIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
+  </svg>
+)
+
 export default function Layout({ children, showBackButton, title, subtitle }: LayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated, user, logout } = useAuth()
+
+  const mobileGridColumns =
+    user && user.role === 'ADMIN'
+      ? 'grid-cols-4'
+      : user && user.role === 'TEACHER'
+      ? 'grid-cols-3'
+      : user && user.role === 'STUDENT'
+      ? 'grid-cols-2'
+      : 'grid-cols-1'
 
   const isActive = (path: string) => location.pathname === path
 
@@ -166,6 +182,17 @@ export default function Layout({ children, showBackButton, title, subtitle }: La
                         <span className="hidden sm:inline ml-2">Painel</span>
                       </Link>
                     )}
+                    {user && user.role === 'ADMIN' && (
+                      <Link
+                        to="/admin/users"
+                        className={`btn-hover-bounce nav-link ${
+                          isActive('/admin/users') ? 'nav-link-active' : ''
+                        }`}
+                      >
+                        <ShieldCheckIcon className="w-5 h-5" />
+                        <span className="hidden sm:inline ml-2">Admin</span>
+                      </Link>
+                    )}
                     {/* Only show Progress link for students */}
                     {user && user.role === 'STUDENT' && (
                       <Link
@@ -269,7 +296,7 @@ export default function Layout({ children, showBackButton, title, subtitle }: La
       {/* Mobile bottom navigation */}
       {!showBackButton && !isQuizPage && !isResultsPage && (
         <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 dark:bg-gray-800 dark:border-gray-700 transition-colors duration-200 slide-in-bottom-fade">
-          <div className={`grid h-16 ${user && (user.role === 'TEACHER' || user.role === 'ADMIN') ? 'grid-cols-3' : user && user.role === 'STUDENT' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`grid h-16 ${mobileGridColumns}`}>
             <Link
               to="/"
               className={`btn-hover-bounce mobile-nav-link ${isActive('/') ? 'mobile-nav-link-active' : ''}`}
@@ -295,6 +322,15 @@ export default function Layout({ children, showBackButton, title, subtitle }: La
               >
                 <Cog6ToothIcon className="w-6 h-6" />
                 <span className="text-xs mt-1">Config</span>
+              </Link>
+            )}
+            {user && user.role === 'ADMIN' && (
+              <Link
+                to="/admin/users"
+                className={`btn-hover-bounce mobile-nav-link ${isActive('/admin/users') ? 'mobile-nav-link-active' : ''}`}
+              >
+                <ShieldCheckIcon className="w-6 h-6" />
+                <span className="text-xs mt-1">Admin</span>
               </Link>
             )}
             {/* Only show Progress link for students */}

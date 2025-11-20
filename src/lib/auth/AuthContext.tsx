@@ -8,6 +8,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { httpClient, login as apiLogin, logout as apiLogout } from '../api/httpClient';
+import type { AuthUser as ApiAuthUser } from '../api/httpClient';
 
 const AUTH_USER_KEY = 'angela_auth_user';
 
@@ -44,12 +45,7 @@ function persistStoredUser(next: AuthUser | null): void {
 
 export type AuthStatus = 'idle' | 'checking' | 'authenticated' | 'unauthenticated';
 
-export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: 'ADMIN' | 'TEACHER' | 'STUDENT';
-}
+export type AuthUser = ApiAuthUser;
 
 export interface AuthContextValue {
   status: AuthStatus;
@@ -63,9 +59,9 @@ export interface AuthContextValue {
 
 /**
  * AuthContext
- * - Fonte única de verdade para autenticação no frontend.
+ * - Fonte Ãºnica de verdade para autenticaÃ§Ã£o no frontend.
  * - Baseado em tokens geridos por httpClient (localStorage).
- * - Não guarda tokens aqui; apenas o utilizador e estado.
+ * - NÃ£o guarda tokens aqui; apenas o utilizador e estado.
  */
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -96,8 +92,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       notifySessionChange();
       return;
     }
-      // Para j� n�o existe endpoint /me no contrato.
-      // Estrat�gia: assumimos que se existe token v�lido, o backend ir� aceitar chamadas;
+      // Para já não existe endpoint /me no contrato.
+      // Estratégia: assumimos que se existe token válido, o backend irá aceitar chamadas;
       // podemos opcionalmente decodificar JWT no futuro.
       setUser(storedUser);
       setStatus('authenticated');
@@ -119,7 +115,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setStatus('checking');
     try {
       const result = await apiLogin(email, password);
-      // O httpClient.login já persiste tokens via setTokens().
+      // O httpClient.login jÃ¡ persiste tokens via setTokens().
       const { user: loggedUser } = result;
       setUser(loggedUser);
       persistStoredUser(loggedUser);
@@ -180,7 +176,7 @@ export function useAuth(): AuthContextValue {
 }
 
 /**
- * Higher-order component para proteger páginas/rotas por role.
+ * Higher-order component para proteger pÃ¡ginas/rotas por role.
  * Uso:
  *   export default withRequiredRole(['TEACHER'], MyPageComponent)
  */
@@ -192,7 +188,7 @@ export function withRequiredRole<P extends object>(
     const { isAuthenticated, isLoading, requireRole } = useAuth();
 
     if (isLoading) {
-      return <div className="flex h-full items-center justify-center">A validar sessão...</div>;
+      return <div className="flex h-full items-center justify-center">A validar sessÃ£o...</div>;
     }
 
     if (!isAuthenticated || !requireRole(...roles)) {
@@ -200,7 +196,7 @@ export function withRequiredRole<P extends object>(
         <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
           <h2 className="text-lg font-semibold">Acesso restrito</h2>
           <p className="text-sm text-gray-500">
-            Esta área é reservada. Inicie sessão com uma conta com permissões adequadas.
+            Esta Ã¡rea Ã© reservada. Inicie sessÃ£o com uma conta com permissÃµes adequadas.
           </p>
         </div>
       );

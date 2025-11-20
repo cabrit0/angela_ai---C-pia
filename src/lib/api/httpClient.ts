@@ -24,12 +24,16 @@ export interface ApiEnvelope<T> {
 }
 
 export type UserRole = 'ADMIN' | 'TEACHER' | 'STUDENT'
+export type UserStatus = 'ACTIVE' | 'PENDING' | 'REJECTED'
 
 export interface AuthUser {
   id: string
   name: string
   email: string
   role: UserRole
+  status: UserStatus
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface AuthTokens {
@@ -224,6 +228,26 @@ export async function login(email: string, password: string): Promise<AuthRespon
   return data
 }
 
+export async function registerUser(input: {
+  name: string
+  email: string
+  password: string
+  role?: UserRole
+}): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      role: input.role,
+    }),
+  })
+
+  return parseResponse<AuthResponse>(res)
+}
+
 export async function logout(): Promise<void> {
   try {
     await fetch(`${API_BASE_URL}/api/auth/logout`, {
@@ -233,6 +257,67 @@ export async function logout(): Promise<void> {
   } finally {
     setTokens(null)
   }
+}
+
+type AdminUserFilter = {
+  status?: UserStatus
+  role?: UserRole
+}
+
+async function adminListUsers(filter?: AdminUserFilter): Promise<AuthUser[]> {
+  const params = new URLSearchParams()
+  if (filter?.status) params.set('status', filter.status)
+  if (filter?.role) params.set('role', filter.role)
+
+  const query = params.toString()
+  return requestWithAuthRetry<AuthUser[]>(
+    `${API_BASE_URL}/api/admin/users${query ? `?${query}` : ''}`,
+    { method: 'GET' }
+  )
+}
+
+async function adminApproveUser(userId: string): Promise<AuthUser> {
+  return requestWithAuthRetry<AuthUser>(
+    `${API_BASE_URL}/api/admin/users/${userId}/approve`,
+    {
+      method: 'POST',
+      headers: buildHeaders(),
+    }
+  )
+}
+
+async function adminRejectUser(userId: string): Promise<AuthUser> {
+  return requestWithAuthRetry<AuthUser>(
+    `${API_BASE_URL}/api/admin/users/${userId}/reject`,
+    {
+      method: 'POST',
+      headers: buildHeaders(),
+    }
+  )
+}
+
+async function adminUpdateUserStatus(
+  userId: string,
+  status: UserStatus
+): Promise<AuthUser> {
+  return requestWithAuthRetry<AuthUser>(
+    `${API_BASE_URL}/api/admin/users/${userId}/status`,
+    {
+      method: 'PATCH',
+      headers: buildHeaders(),
+      body: JSON.stringify({ status }),
+    }
+  )
+}
+
+async function adminDeleteUser(userId: string): Promise<void> {
+  await requestWithAuthRetry<null>(
+    `${API_BASE_URL}/api/admin/users/${userId}`,
+    {
+      method: 'DELETE',
+      headers: buildHeaders(),
+    }
+  )
 }
 
 /**
@@ -1019,7 +1104,13 @@ export const httpClient = {
   // Auth
   login,
   logout,
+  registerUser,
   getAccessToken,
+  adminListUsers,
+  adminApproveUser,
+  adminRejectUser,
+  adminUpdateUserStatus,
+  adminDeleteUser,
   // Quizzes
   fetchMyQuizzes,
   fetchQuizById,

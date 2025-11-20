@@ -13,6 +13,7 @@ import Classes from '../pages/Classes'
 import Assignments from '../pages/Assignments'
 import SharedQuizzes from '../pages/SharedQuizzes'
 import StudentProgress from '../pages/StudentProgress'
+import AdminUsers from '../pages/AdminUsers'
 import { useAuth } from '../lib/auth/AuthContext'
 
 // Componente para página não encontrada
@@ -182,6 +183,14 @@ export default function Router() {
         element={
           <ProtectedRoute requiredRole="TEACHER">
             <Layout title="Quizzes Compartilhados"><SharedQuizzes /></Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <Layout title="Gestão de contas"><AdminUsers /></Layout>
           </ProtectedRoute>
         }
       />

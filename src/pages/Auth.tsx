@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
+import { registerUser } from '../lib/api/httpClient';
 
 /**
  * Página de Autenticação:
@@ -12,6 +13,16 @@ const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const { login: authLogin } = useAuth();
 
+  const roleOptions: Array<{
+    value: 'TEACHER' | 'STUDENT' | 'ADMIN'
+    label: string
+    description: string
+  }> = [
+    { value: 'TEACHER', label: 'Professor', description: 'Cria quizzes e gere turmas' },
+    { value: 'STUDENT', label: 'Aluno', description: 'Recebe assignments e responde' },
+    { value: 'ADMIN', label: 'Administrador', description: 'Administra toda a plataforma' },
+  ];
+
   const [mode, setMode] = useState<'login' | 'register-teacher'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -19,6 +30,8 @@ const AuthPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [registerRole, setRegisterRole] = useState<'TEACHER' | 'STUDENT' | 'ADMIN'>('TEACHER');
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   const resetState = () => {
     setError(null);
@@ -34,10 +47,24 @@ const AuthPage: React.FC = () => {
       await authLogin(email.trim(), password);
       navigate('/');
     } catch (err: any) {
-      setError(
-        err?.message ||
-          'Não foi possível iniciar sessão. Verifique as credenciais ou tente novamente.'
-      );
+      const fallbackMessage =
+        'NA�o foi possA-vel iniciar sessA�o. Verifique as credenciais ou tente novamente.'
+      if (err?.code === 403) {
+        const normalized = String(err?.message ?? '').toLowerCase()
+        if (normalized.includes('pending')) {
+          setError('A sua conta ainda aguarda aprovaA�o de um administrador.')
+          setInfoMessage('Assim que um administrador aprovar o registo receberA� notificaA�o por email.')
+        } else if (normalized.includes('rejected')) {
+          setError('A sua conta foi rejeitada. Contacte o suporte para mais detalhes.')
+          setInfoMessage(null)
+        } else {
+          setError(err?.message || fallbackMessage)
+          setInfoMessage(null)
+        }
+      } else {
+        setError(err?.message || fallbackMessage)
+        setInfoMessage(null)
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -62,29 +89,30 @@ const AuthPage: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
-          password,
-        }),
+      const response = await registerUser({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        role: registerRole,
       });
 
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.success || !json?.data) {
-        throw new Error(json?.message || 'Falha ao criar conta de professor.');
-      }
+      const requestedRole =
+        roleOptions.find((option) => option.value === registerRole)?.label ?? 'Conta'
 
-      // Login automático após registo
-      await authLogin(email.trim(), password);
-      navigate('/');
+      setInfoMessage(
+        `${requestedRole} criada para ${response.user.email}. Aguarde a aprovação de um administrador para iniciar sessão.`
+      )
+      setMode('login')
+      setPassword('')
+      setConfirmPassword('')
+      setRegisterRole('TEACHER')
+      setError(null)
     } catch (err: any) {
       setError(
         err?.message ||
           'Não foi possível criar a conta. Verifique os dados e tente novamente.'
       );
+      setInfoMessage(null)
     } finally {
       setIsSubmitting(false);
     }
@@ -93,6 +121,9 @@ const AuthPage: React.FC = () => {
   const toggleMode = (next: 'login' | 'register-teacher') => {
     setMode(next);
     setError(null);
+    if (next === 'register-teacher') {
+      setInfoMessage(null);
+    }
   };
 
   return (
@@ -177,9 +208,16 @@ const AuthPage: React.FC = () => {
             </button>
           </div>
 
+          {infoMessage && (
+            <div className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg flex items-start gap-2">
+              <span className="mt-0.5">✓</span>
+              <p>{infoMessage}</p>
+            </div>
+          )}
+
           {error && (
             <div className="text-xs bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg flex items-start gap-2">
-              <span className="mt-0.5">⚠</span>
+              <span className="mt-0.5">!</span>
               <p>{error}</p>
             </div>
           )}
@@ -255,6 +293,33 @@ const AuthPage: React.FC = () => {
                   className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                   placeholder="nome@escola.pt"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Perfil pretendido
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {roleOptions.map((option) => (
+                    <button
+                      type="button"
+                      key={option.value}
+                      onClick={() => setRegisterRole(option.value)}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        registerRole === option.value
+                          ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-200'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-300'
+                      }`}
+                      aria-pressed={registerRole === option.value}
+                    >
+                      <p className="text-sm font-semibold">{option.label}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">{option.description}</p>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  Todos os registos passam por validaA�o do administrador antes de terem acesso completo.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
