@@ -255,8 +255,11 @@ function Home() {
   }
 
   // Calculate statistics
-  const totalQuestions = quizzes.reduce((sum, quiz) => sum + quiz.questions.length, 0)
-  const completedQuizzes = quizzes.filter(quiz => quiz.questions.length > 0).length // Simple completion check
+  const getQuestionCount = (quiz: typeof quizzes[number]) =>
+    typeof quiz.questionCount === 'number' ? quiz.questionCount : quiz.questions.length
+
+  const totalQuestions = quizzes.reduce((sum, quiz) => sum + getQuestionCount(quiz), 0)
+  const completedQuizzes = quizzes.filter(quiz => getQuestionCount(quiz) > 0).length // Simple completion check
 
   // Filter and sort quizzes
   const filteredQuizzes = quizzes.filter(quiz => {
@@ -269,7 +272,7 @@ function Home() {
   }).sort((a, b) => {
     if (sortBy === 'recent') return b.createdAt - a.createdAt
     if (sortBy === 'title') return a.title.localeCompare(b.title)
-    if (sortBy === 'questions') return b.questions.length - a.questions.length
+    if (sortBy === 'questions') return getQuestionCount(b) - getQuestionCount(a)
     return 0
   })
 

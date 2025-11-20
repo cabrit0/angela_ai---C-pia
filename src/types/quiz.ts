@@ -37,6 +37,7 @@ export interface Quiz {
   subject?: string
   grade?: string
   questions: Question[]
+  questionCount?: number
   createdAt: number
   updatedAt: number
   isPublished?: boolean

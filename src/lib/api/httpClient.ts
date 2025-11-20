@@ -333,6 +333,7 @@ export interface ApiQuizSummary {
   isPublished: boolean
   createdAt: string
   updatedAt: string
+  questionCount?: number
 }
 
 export interface ApiQuizQuestion {
@@ -587,6 +588,7 @@ export async function fetchMyQuizzes(): Promise<Quiz[]> {
         ? String((q.metadata as Record<string, unknown>).grade ?? '')
         : '',
     questions: [], // carregadas on-demand via fetchQuizQuestions
+    questionCount: typeof q.questionCount === 'number' ? q.questionCount : undefined,
     createdAt: new Date(q.createdAt).getTime(),
     updatedAt: new Date(q.updatedAt).getTime(),
     isPublished: q.isPublished,
@@ -611,10 +613,11 @@ export async function fetchQuizById(id: string): Promise<Quiz | null> {
           ? String((data.metadata as Record<string, unknown>).grade ?? '')
           : '',
       questions: [],
-      createdAt: new Date(data.createdAt).getTime(),
-      updatedAt: new Date(data.updatedAt).getTime(),
-      isPublished: data.isPublished,
-    }
+    createdAt: new Date(data.createdAt).getTime(),
+    updatedAt: new Date(data.updatedAt).getTime(),
+    isPublished: data.isPublished,
+    questionCount: typeof data.questionCount === 'number' ? data.questionCount : undefined,
+  }
   } catch (error) {
     console.error('[API] fetchQuizById falhou:', error)
     return null

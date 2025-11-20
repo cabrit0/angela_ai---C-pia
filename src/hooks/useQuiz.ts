@@ -111,7 +111,11 @@ export const useQuiz = () => {
 
     // Obter número total de perguntas em todos os quizzes
     getTotalQuestionsCount: (): number => {
-      return state.quizzes.reduce((total, quiz) => total + quiz.questions.length, 0)
+      return state.quizzes.reduce((total, quiz) => {
+        const count =
+          typeof quiz.questionCount === 'number' ? quiz.questionCount : quiz.questions.length
+        return total + count
+      }, 0)
     },
 
     // Obter um quiz por título

@@ -36,6 +36,10 @@ export const quizReducer = (state: QuizState, action: QuizAction): QuizState => 
       // The quiz is already fully formed in the store/index.ts
       const newQuiz = {
         ...action.payload,
+        questionCount:
+          typeof action.payload.questionCount === 'number'
+            ? action.payload.questionCount
+            : action.payload.questions.length,
         // Mark as locally saved if not already marked
         isLocallySaved: action.payload.isLocallySaved !== undefined ? action.payload.isLocallySaved : true
       };
@@ -96,6 +100,8 @@ export const quizReducer = (state: QuizState, action: QuizAction): QuizState => 
             const updatedQuiz = {
               ...quiz,
               questions: [...quiz.questions, newQuestion],
+              questionCount:
+                (typeof quiz.questionCount === 'number' ? quiz.questionCount : quiz.questions.length) + 1,
               updatedAt: getCurrentTimestamp()
             }
             
@@ -137,6 +143,10 @@ export const quizReducer = (state: QuizState, action: QuizAction): QuizState => 
             return {
               ...quiz,
               questions: quiz.questions.filter(question => question.id !== questionId),
+              questionCount: Math.max(
+                0,
+                (typeof quiz.questionCount === 'number' ? quiz.questionCount : quiz.questions.length) - 1
+              ),
               updatedAt: getCurrentTimestamp()
             }
           }

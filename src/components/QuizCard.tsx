@@ -111,6 +111,8 @@ export const QuizCard: React.FC<QuizCardProps> = ({ quiz, onEdit, allQuizzes = [
   
   // Check if user is a student
   const isStudent = user?.role === 'STUDENT'
+  const questionCount =
+    typeof quiz.questionCount === 'number' ? quiz.questionCount : quiz.questions.length
 
   const handleTakeQuiz = () => {
     // Validate quiz ID before navigation
@@ -288,8 +290,8 @@ export const QuizCard: React.FC<QuizCardProps> = ({ quiz, onEdit, allQuizzes = [
                   </span>
                 )}
                 <span className="badge badge-green rounded-full px-3 py-1 text-xs font-semibold">
-                  {quiz.questions.length}{' '}
-                  {quiz.questions.length === 1 ? 'pergunta' : 'perguntas'}
+                  {questionCount}{' '}
+                  {questionCount === 1 ? 'pergunta' : 'perguntas'}
                 </span>
               </div>
               {typeof quiz.isPublished === 'boolean' && (
