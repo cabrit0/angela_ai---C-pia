@@ -9,10 +9,13 @@ import type { QType } from '../../types/quiz'
  * - Mantém tudo isolado para facilitar troca de implementação.
  */
 
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.trim().length > 0)
-    ? import.meta.env.VITE_API_BASE_URL.trim()
-    : 'http://localhost:4000'
+// Resolve base URL priorizando variável de ambiente e evitando cair em localhost em produção.
+const API_BASE_URL = (() => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+  if (envUrl) return envUrl
+  if (import.meta.env.PROD) return 'https://api-angela-ai-rc1m.vercel.app'
+  return 'http://localhost:4000'
+})()
 
 export interface ApiEnvelope<T> {
   success: boolean
