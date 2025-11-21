@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { Quiz } from '../types'
 import { useQuiz } from '../hooks/useQuiz'
 import { useAuth } from '../lib/auth/AuthContext'
-import { deleteQuiz as deleteQuizApi, forkQuiz as forkQuizApi, getQuizzes } from '../lib/api'
+import { deleteQuiz as deleteQuizApi, forkQuiz as forkQuizApi, getQuizzes, publicSharesApi } from '../lib/api'
 import { exportQuizToJsonAndDownload } from '../lib/utils/importExport'
 import ExportPdfButton from './ExportPdfButton'
 
@@ -67,6 +67,12 @@ const VideoIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const ShareIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+  </svg>
+)
+
 type ActionVariant = 'neutral' | 'success' | 'secondary' | 'danger'
 
 interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -105,6 +111,9 @@ export const QuizCard: React.FC<QuizCardProps> = ({ quiz, onEdit, allQuizzes = [
   const navigate = useNavigate()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDuplicating, setIsDuplicating] = useState(false)
+  const [showPublicShareModal, setShowPublicShareModal] = useState(false)
+  const [publicShareMessage, setPublicShareMessage] = useState('')
+  const [isRequestingPublicShare, setIsRequestingPublicShare] = useState(false)
   const hasSupportText = Boolean(quiz.supportText && quiz.supportText.trim().length > 0)
   const videoCount = quiz.youtubeVideos?.length ?? 0
   const hasVideos = videoCount > 0
@@ -253,7 +262,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({ quiz, onEdit, allQuizzes = [
       showNotification('Não é possível exportar o quiz: ID inválido.', 'error')
       return
     }
-    
+
     console.log('[QuizCard] Exporting quiz with ID to JSON:', quiz.id)
     try {
       exportQuizToJsonAndDownload(quiz)
@@ -261,6 +270,21 @@ export const QuizCard: React.FC<QuizCardProps> = ({ quiz, onEdit, allQuizzes = [
     } catch (error) {
       console.error('Erro ao exportar quiz:', error)
       showNotification('Erro ao exportar quiz. Por favor, tente novamente.', 'error')
+    }
+  }
+
+  const handleRequestPublicShare = async () => {
+    setIsRequestingPublicShare(true)
+    try {
+      await publicSharesApi.requestPublicShare(quiz.id, publicShareMessage)
+      showNotification('Pedido de compartilhamento público enviado com sucesso!')
+      setShowPublicShareModal(false)
+      setPublicShareMessage('')
+    } catch (error: any) {
+      console.error('Erro ao solicitar compartilhamento público:', error)
+      showNotification(error?.message || 'Erro ao solicitar compartilhamento público.', 'error')
+    } finally {
+      setIsRequestingPublicShare(false)
     }
   }
 
@@ -340,6 +364,14 @@ export const QuizCard: React.FC<QuizCardProps> = ({ quiz, onEdit, allQuizzes = [
                   <DownloadIcon className="h-4 w-4" />
                 </ActionButton>
                 <ActionButton
+                  label="Compartilhar Publicamente"
+                  onClick={() => setShowPublicShareModal(true)}
+                  variant="success"
+                  className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
+                >
+                  <ShareIcon className="h-4 w-4" />
+                </ActionButton>
+                <ActionButton
                   label="Eliminar"
                   onClick={handleDelete}
                   disabled={isDeleting}
@@ -401,6 +433,51 @@ export const QuizCard: React.FC<QuizCardProps> = ({ quiz, onEdit, allQuizzes = [
           Criado em {formatDate(quiz.createdAt)}
         </div>
       </div>
+
+      {/* Public Share Modal */}
+      {showPublicShareModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Solicitar Compartilhamento Público
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Este pedido será enviado para aprovação do administrador. Uma vez aprovado, o quiz ficará disponível para todos os professores.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Mensagem (opcional)
+              </label>
+              <textarea
+                value={publicShareMessage}
+                onChange={(e) => setPublicShareMessage(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
+                placeholder="Explique por que este quiz deve ser compartilhado publicamente..."
+              />
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleRequestPublicShare}
+                disabled={isRequestingPublicShare}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRequestingPublicShare ? 'A enviar...' : 'Enviar Pedido'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowPublicShareModal(false);
+                  setPublicShareMessage('');
+                }}
+                disabled={isRequestingPublicShare}
+                className="flex-1 px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </article>
   )
 }

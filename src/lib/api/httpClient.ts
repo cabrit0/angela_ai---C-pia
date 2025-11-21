@@ -354,6 +354,8 @@ export interface ApiQuizSummary {
   createdAt: string
   updatedAt: string
   questionCount?: number
+  supportText?: string
+  youtubeVideos?: string[]
 }
 
 export interface ApiQuizQuestion {
@@ -612,6 +614,8 @@ export async function fetchMyQuizzes(): Promise<Quiz[]> {
     createdAt: new Date(q.createdAt).getTime(),
     updatedAt: new Date(q.updatedAt).getTime(),
     isPublished: q.isPublished,
+    supportText: q.supportText,
+    youtubeVideos: q.youtubeVideos,
   }))
 }
 
@@ -637,6 +641,8 @@ export async function fetchQuizById(id: string): Promise<Quiz | null> {
     updatedAt: new Date(data.updatedAt).getTime(),
     isPublished: data.isPublished,
     questionCount: typeof data.questionCount === 'number' ? data.questionCount : undefined,
+    supportText: data.supportText,
+    youtubeVideos: data.youtubeVideos,
   }
   } catch (error) {
     console.error('[API] fetchQuizById falhou:', error)
@@ -994,6 +1000,74 @@ export async function forkQuizApi(quizId: string): Promise<ApiQuizSummary> {
   )
 }
 
+/**
+ * PUBLIC SHARE (Teacher & Admin)
+ */
+
+export async function requestPublicShareApi(input: {
+  quizId: string
+  requestMessage?: string
+}): Promise<any> {
+  return requestWithAuthRetry(
+    `${API_BASE_URL}/api/quizzes/${input.quizId}/request-public-share`,
+    {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        requestMessage: input.requestMessage,
+      }),
+    }
+  )
+}
+
+export async function listPublicQuizzesApi(): Promise<ApiQuizSummary[]> {
+  return requestWithAuthRetry<ApiQuizSummary[]>(
+    `${API_BASE_URL}/api/quizzes/public`,
+    { method: 'GET' }
+  )
+}
+
+export async function getMyPublicShareRequestsApi(): Promise<any[]> {
+  return requestWithAuthRetry<any[]>(
+    `${API_BASE_URL}/api/quizzes/my-public-share-requests`,
+    { method: 'GET' }
+  )
+}
+
+export async function listPublicShareRequestsApi(status?: string): Promise<any[]> {
+  const url = status
+    ? `${API_BASE_URL}/api/admin/public-share-requests?status=${status}`
+    : `${API_BASE_URL}/api/admin/public-share-requests`
+
+  return requestWithAuthRetry<any[]>(url, { method: 'GET' })
+}
+
+export async function approvePublicShareRequestApi(requestId: string): Promise<any> {
+  return requestWithAuthRetry(
+    `${API_BASE_URL}/api/admin/public-share-requests/${requestId}/approve`,
+    {
+      method: 'PATCH',
+      headers: buildHeaders(),
+    }
+  )
+}
+
+export async function rejectPublicShareRequestApi(input: {
+  requestId: string
+  rejectionReason?: string
+}): Promise<any> {
+  return requestWithAuthRetry(
+    `${API_BASE_URL}/api/admin/public-share-requests/${input.requestId}/reject`,
+    {
+      method: 'PATCH',
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        rejectionReason: input.rejectionReason,
+      }),
+    }
+  )
+}
+
 export async function startAttemptApi(input: {
   quizId: string
   assignmentId: string
@@ -1173,6 +1247,13 @@ export const httpClient = {
   revokeShareApi,
   listQuizzesSharedWithMeApi,
   forkQuizApi,
+  // Public Shares
+  requestPublicShareApi,
+  listPublicQuizzesApi,
+  getMyPublicShareRequestsApi,
+  listPublicShareRequestsApi,
+  approvePublicShareRequestApi,
+  rejectPublicShareRequestApi,
   // Attempts
   startAttemptApi,
   submitAttemptApi,

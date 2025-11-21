@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
-import { classesApi, assignmentsApi, sharesApi } from '../lib/api';
+import { classesApi, assignmentsApi, sharesApi, publicSharesApi } from '../lib/api';
+import SecondaryNav from '../components/SecondaryNav';
 
 interface ClassSummary {
   id: string;
@@ -43,6 +44,7 @@ const DashboardPage: React.FC = () => {
   const [newClassDescription, setNewClassDescription] = useState('');
   const [isCreatingClass, setIsCreatingClass] = useState(false);
   const [classFormError, setClassFormError] = useState<string | null>(null);
+  const [pendingPublicSharesCount, setPendingPublicSharesCount] = useState(0);
 
   useEffect(() => {
     if (status === 'checking' || status === 'idle') return;
@@ -76,6 +78,18 @@ const DashboardPage: React.FC = () => {
         } else {
           setSharedWithMe([]);
         }
+
+        // Pending public share requests for ADMIN
+        if (user && user.role === 'ADMIN') {
+          try {
+            const pendingRequests = await publicSharesApi.listAllRequests('PENDING');
+            if (!cancelled) {
+              setPendingPublicSharesCount(pendingRequests?.length || 0);
+            }
+          } catch (err) {
+            console.error('[Dashboard] Erro ao carregar pedidos pendentes:', err);
+          }
+        }
       } catch (e: any) {
         if (!cancelled) {
           setError(
@@ -97,6 +111,7 @@ const DashboardPage: React.FC = () => {
 
   const isTeacher = user?.role === 'TEACHER' || user?.role === 'ADMIN';
   const isStudent = user?.role === 'STUDENT';
+  const isAdmin = user?.role === 'ADMIN';
 
   const handleCreateClassSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -152,54 +167,15 @@ const DashboardPage: React.FC = () => {
               </span>
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {isTeacher && (
-              <>
-                <Link
-                  to="/create"
-                  className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold shadow-sm hover:bg-primary-700 hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  Criar novo Quiz
-                </Link>
-                <Link
-                  to="/"
-                  className="px-4 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-                >
-                  Ver todos os quizzes
-                </Link>
-                <Link
-                  to="/classes"
-                  className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold shadow-sm hover:bg-green-700 hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  Turmas
-                </Link>
-                <Link
-                  to="/assignments"
-                  className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold shadow-sm hover:bg-orange-700 hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  Assignments
-                </Link>
-                <Link
-                  to="/shared"
-                  className="px-4 py-2 rounded-lg bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  Compartilhados
-                </Link>
-                <Link
-                  to="/reports"
-                  className="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-semibold shadow-sm hover:bg-purple-700 hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  Relatórios
-                </Link>
-              </>
-            )}
-            {isStudent && (
-              <span className="px-3 py-1 rounded-lg bg-blue-50 text-blue-700 text-[11px] shadow-sm">
-                Veja abaixo os quizzes atribuídos a si
-              </span>
-            )}
-          </div>
+          {isStudent && (
+            <span className="px-4 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm font-medium shadow-sm border border-blue-200 dark:border-blue-800">
+              Veja abaixo os quizzes atribuídos a si
+            </span>
+          )}
         </div>
+
+        {/* Secondary Navigation - Teacher & Admin */}
+        <SecondaryNav pendingPublicSharesCount={pendingPublicSharesCount} />
 
         {/* Error / Loading */}
         {error && (

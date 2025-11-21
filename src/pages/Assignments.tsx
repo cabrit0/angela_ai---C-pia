@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth/AuthContext';
 import { assignmentsApi, classesApi, getQuizzes, usersApi } from '../lib/api';
+import SecondaryNav from '../components/SecondaryNav';
 import type { ApiAssignment, ApiClass } from '../lib/api/httpClient';
 import type { Quiz } from '../types/quiz';
 
@@ -213,6 +214,9 @@ const AssignmentsPage: React.FC = () => {
             </button>
           )}
         </div>
+
+        {/* Secondary Navigation */}
+        <SecondaryNav />
 
         {/* Error */}
         {error && (

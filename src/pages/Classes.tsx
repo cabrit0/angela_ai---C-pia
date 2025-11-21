@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth/AuthContext';
 import { classesApi, usersApi } from '../lib/api';
+import SecondaryNav from '../components/SecondaryNav';
 import type { ApiClass } from '../lib/api/httpClient';
 
 interface Student {
@@ -234,6 +235,9 @@ const ClassesPage: React.FC = () => {
             </button>
           )}
         </div>
+
+        {/* Secondary Navigation */}
+        <SecondaryNav />
 
         {/* Error */}
         {error && (

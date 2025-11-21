@@ -24,3 +24,19 @@ export interface QuizResult {
   completedAt: Date
   answers: number[]
 }
+
+// Public Share Request types
+export type PublicShareRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface PublicShareRequest {
+  id: string;
+  quizId: string;
+  requestedByTeacherId: string;
+  status: PublicShareRequestStatus;
+  requestMessage?: string;
+  rejectionReason?: string;
+  reviewedByAdminId?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}

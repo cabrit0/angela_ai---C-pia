@@ -47,6 +47,13 @@ import {
   revokeShareApi,
   listQuizzesSharedWithMeApi,
   forkQuizApi,
+  // Public Shares
+  requestPublicShareApi,
+  listPublicQuizzesApi,
+  getMyPublicShareRequestsApi,
+  listPublicShareRequestsApi,
+  approvePublicShareRequestApi,
+  rejectPublicShareRequestApi,
   // Statistics & Reports
   getQuizStatistics,
   getClassStatistics,
@@ -257,6 +264,22 @@ export const sharesApi = {
 
 export async function forkQuiz(quizId: string) {
   return forkQuizApi(quizId)
+}
+
+/**
+ * PUBLIC SHARES (Teacher & Admin)
+ * Compartilhamento público de quizzes com todos os professores.
+ */
+export const publicSharesApi = {
+  requestPublicShare: (quizId: string, requestMessage?: string) =>
+    requestPublicShareApi({ quizId, requestMessage }),
+  listPublicQuizzes: () => listPublicQuizzesApi(),
+  getMyRequests: () => getMyPublicShareRequestsApi(),
+  // Admin only
+  listAllRequests: (status?: string) => listPublicShareRequestsApi(status),
+  approveRequest: (requestId: string) => approvePublicShareRequestApi(requestId),
+  rejectRequest: (requestId: string, rejectionReason?: string) =>
+    rejectPublicShareRequestApi({ requestId, rejectionReason }),
 }
 
 /**

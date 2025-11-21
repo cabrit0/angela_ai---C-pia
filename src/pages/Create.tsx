@@ -939,15 +939,32 @@ const Create: React.FC = () => {
                       value={
                         quizzes.find(q => q.id === currentQuizId)?.youtubeVideos || []
                       }
-                      onChange={(videos) => {
+                      onChange={async (videos) => {
                         if (!currentQuizId) return;
                         const currentQuiz = quizzes.find(q => q.id === currentQuizId);
                         if (!currentQuiz) return;
-                        // Atualização local via store; quando existir endpoint PATCH, trocar para API.
+
+                        // Atualiza o estado local imediatamente
                         editQuiz(currentQuizId, {
                           ...currentQuiz,
                           youtubeVideos: videos,
                         });
+
+                        // Salva automaticamente na API
+                        try {
+                          const normalizedVideos = videos
+                            .map((u) => (u || '').trim())
+                            .filter((u) => u.length > 0)
+
+                          await updateQuizApi({
+                            id: currentQuizId,
+                            youtubeVideos: normalizedVideos,
+                          })
+
+                          console.log('[Create] Vídeos salvos automaticamente na API')
+                        } catch (error) {
+                          console.error('[Create] Erro ao salvar vídeos na API:', error)
+                        }
                       }}
                     />
                   </div>

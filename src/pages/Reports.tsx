@@ -6,6 +6,7 @@ import {
   classesApi,
   assignmentsApi
 } from '../lib/api'
+import SecondaryNav from '../components/SecondaryNav'
 import type {
   QuizStatistics,
   ClassStatistics,
@@ -173,21 +174,45 @@ const ReportsPage: React.FC = () => {
     const loadData = async () => {
       try {
         if (user?.role === 'TEACHER' || user?.role === 'ADMIN') {
-          console.log('[Reports] Loading data for user:', user.role)
-          const [quizzesData, classesData, assignmentsData] = await Promise.all([
-            getQuizzes(),
-            classesApi.listForCurrentUser(),
-            assignmentsApi.listForCurrentUser()
-          ])
-          console.log('[Reports] Quizzes loaded:', quizzesData?.length || 0, quizzesData)
-          console.log('[Reports] Classes loaded:', classesData?.length || 0, classesData)
-          console.log('[Reports] Assignments loaded:', assignmentsData?.length || 0, assignmentsData)
+          console.log('[Reports] ========== LOADING DATA ==========')
+          console.log('[Reports] User:', {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status
+          })
+
+          console.log('[Reports] Fetching quizzes...')
+          const quizzesData = await getQuizzes()
+          console.log('[Reports] ✓ Quizzes loaded:', {
+            count: quizzesData?.length || 0,
+            data: quizzesData
+          })
+
+          console.log('[Reports] Fetching classes...')
+          const classesData = await classesApi.listForCurrentUser()
+          console.log('[Reports] ✓ Classes loaded:', {
+            count: classesData?.length || 0,
+            data: classesData
+          })
+
+          console.log('[Reports] Fetching assignments...')
+          const assignmentsData = await assignmentsApi.listForCurrentUser()
+          console.log('[Reports] ✓ Assignments loaded:', {
+            count: assignmentsData?.length || 0,
+            data: assignmentsData
+          })
+
+          console.log('[Reports] ========== DATA LOADED ==========')
+
           setQuizzes(quizzesData || [])
           setClasses(classesData || [])
           setAssignments(assignmentsData || [])
         }
       } catch (err) {
-        console.error('[Reports] Error loading data:', err)
+        console.error('[Reports] ❌ Error loading data:', err)
+        setError('Erro ao carregar dados. Verifique o console para mais detalhes.')
       }
     }
 
@@ -525,6 +550,9 @@ const ReportsPage: React.FC = () => {
               </p>
             </div>
           </div>
+
+          {/* Secondary Navigation */}
+          <SecondaryNav />
 
           {/* Tabs */}
           <div className="reports-tabs">

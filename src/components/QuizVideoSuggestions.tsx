@@ -223,12 +223,59 @@ const extractKeywords = (parts: string[]): string[] => {
 const inferTopicFromSubject = (subject?: string): VideoTopic => {
   const normalized = normalizeText(subject)
   if (!normalized) return 'geral'
-  if (normalized.includes('mat')) return 'matematica'
-  if (normalized.includes('fis')) return 'fisica'
-  if (normalized.includes('quim')) return 'quimica'
-  if (normalized.includes('bio')) return 'biologia'
-  if (normalized.includes('hist')) return 'historia'
+
+  // Matemática - várias variações
+  if (
+    normalized.includes('mat') ||
+    normalized.includes('algebra') ||
+    normalized.includes('geometria') ||
+    normalized.includes('calculo') ||
+    normalized.includes('aritmetica') ||
+    normalized.includes('trigonometria') ||
+    normalized.includes('estatistica')
+  ) return 'matematica'
+
+  // Física
+  if (
+    normalized.includes('fis') ||
+    normalized.includes('mecanica') ||
+    normalized.includes('termodinamica') ||
+    normalized.includes('eletricidade') ||
+    normalized.includes('optica')
+  ) return 'fisica'
+
+  // Química
+  if (
+    normalized.includes('quim') ||
+    normalized.includes('organica') ||
+    normalized.includes('inorganica') ||
+    normalized.includes('atomica') ||
+    normalized.includes('molecular')
+  ) return 'quimica'
+
+  // Biologia
+  if (
+    normalized.includes('bio') ||
+    normalized.includes('genetica') ||
+    normalized.includes('ecologia') ||
+    normalized.includes('anatomia') ||
+    normalized.includes('celula') ||
+    normalized.includes('evolucao')
+  ) return 'biologia'
+
+  // História
+  if (
+    normalized.includes('hist') ||
+    normalized.includes('medieval') ||
+    normalized.includes('antiga') ||
+    normalized.includes('contemporanea') ||
+    normalized.includes('brasil') ||
+    normalized.includes('mundial')
+  ) return 'historia'
+
+  // Ciências (genérico)
   if (normalized.includes('cien')) return 'ciencias'
+
   return 'geral'
 }
 

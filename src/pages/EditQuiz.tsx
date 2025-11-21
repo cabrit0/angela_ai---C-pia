@@ -958,13 +958,31 @@ function EditQuiz() {
                         })),
                       }}
                       value={quiz.youtubeVideos || []}
-                      onChange={(videos: string[]) => {
+                      onChange={async (videos: string[]) => {
                         if (!quizId) return
+
+                        // Atualiza o estado local imediatamente
                         editQuiz(quizId, {
                           ...quiz,
                           youtubeVideos: videos,
                         })
-                        // Não marca como alterações não salvas, pois os vídeos são sincronizados com o store
+
+                        // Salva automaticamente na API
+                        try {
+                          const normalizedVideos = videos
+                            .map((u) => (u || '').trim())
+                            .filter((u) => u.length > 0)
+
+                          await updateQuizApi({
+                            id: quizId,
+                            youtubeVideos: normalizedVideos,
+                          })
+
+                          console.log('[EditQuiz] Vídeos salvos automaticamente na API')
+                        } catch (error) {
+                          console.error('[EditQuiz] Erro ao salvar vídeos na API:', error)
+                          showNotification('Erro ao salvar vídeos. Tente novamente.', 'error')
+                        }
                       }}
                     />
                   </div>

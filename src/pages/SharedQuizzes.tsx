@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
 import { sharesApi, getQuizzes, usersApi } from '../lib/api';
+import SecondaryNav from '../components/SecondaryNav';
 import type { ApiShare } from '../lib/api/httpClient';
 import type { Quiz } from '../types/quiz';
 
@@ -165,6 +166,9 @@ const SharedQuizzesPage: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* Secondary Navigation */}
+        <SecondaryNav />
 
         {/* Error */}
         {error && (
