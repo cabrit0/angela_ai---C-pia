@@ -377,6 +377,7 @@ export interface ApiAssignment {
   isActive: boolean
   availableFrom?: string | null
   availableTo?: string | null
+  allowRetake?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -886,6 +887,7 @@ export async function createAssignmentApi(input: {
   studentId?: string
   availableFrom?: string
   availableTo?: string
+  allowRetake?: boolean
 }): Promise<ApiAssignment> {
   return requestWithAuthRetry<ApiAssignment>(
     `${API_BASE_URL}/api/assignments`,

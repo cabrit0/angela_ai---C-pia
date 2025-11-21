@@ -131,6 +131,7 @@ const AssignmentsPage: React.FC = () => {
         studentId: '',
         availableFrom: '',
         availableTo: '',
+        allowRetake: false,
       });
       setShowEditForm(false);
       setSelectedAssignment(null);
@@ -174,6 +175,7 @@ const AssignmentsPage: React.FC = () => {
       studentId: assignment.studentId || '',
       availableFrom: assignment.availableFrom || '',
       availableTo: assignment.availableTo || '',
+      allowRetake: assignment.allowRetake || false,
     });
     setShowEditForm(true);
     setFormError(null);
@@ -214,6 +216,7 @@ const AssignmentsPage: React.FC = () => {
                   studentId: '',
                   availableFrom: '',
                   availableTo: '',
+                  allowRetake: false,
                 });
                 setShowCreateForm(true);
                 setFormError(null);

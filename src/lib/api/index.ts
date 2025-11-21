@@ -203,11 +203,13 @@ export const assignmentsApi = {
    * Alinha com POST /api/assignments.
    */
   create: (input: {
+    name: string
     quizId: string
     classId?: string
     studentId?: string
     availableFrom?: string
     availableTo?: string
+    allowRetake?: boolean
   }) => createAssignmentApi(input),
 
   /**

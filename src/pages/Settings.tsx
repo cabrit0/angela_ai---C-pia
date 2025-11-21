@@ -204,10 +204,6 @@ const Settings: React.FC = () => {
     return testResults.find(result => result.provider === provider && result.type === type);
   };
 
-  const formatTimestamp = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('pt-PT');
-  };
-
   const tabs = user && (user.role === 'TEACHER' || user.role === 'ADMIN') ? [
     { id: 'providers', label: 'Provedores', icon: <SparklesIcon /> },
     { id: 'keys', label: 'Chaves de API', icon: <KeyIcon /> },

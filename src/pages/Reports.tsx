@@ -534,12 +534,7 @@ const ReportsPage: React.FC = () => {
   const filteredClasses = classes.filter(cls =>
     cls.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
-  
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-  
+
   const filteredAssignments = assignments.filter(assignment => {
     const quiz = quizzes.find(q => q.id === assignment.quizId)
     const quizTitle = quiz ? quiz.title : 'Quiz Desconhecido'

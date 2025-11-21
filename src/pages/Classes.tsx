@@ -273,7 +273,7 @@ const ClassesPage: React.FC = () => {
 
   const openEnrollForm = (classItem: ApiClass) => {
     setSelectedClass(classItem);
-    setEnrollData({ studentEmail: '' });
+    setEnrollData({ searchQuery: '' });
     setShowEnrollForm(true);
     setFormError(null);
   };
