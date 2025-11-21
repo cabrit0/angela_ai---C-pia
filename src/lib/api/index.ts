@@ -10,6 +10,7 @@
  */
 
 import type { Quiz, Question } from '../../types'
+import type { AiProvider } from './httpClient'
 import {
   httpClient,
   fetchMyQuizzes,
@@ -67,8 +68,6 @@ import {
   // User Settings
   getUserSettings,
   updateUserSettings,
-  type UserSettings,
-  type AiProvider,
 } from './httpClient'
 
 /**
@@ -392,3 +391,8 @@ export const userSettingsApi = {
 export const apiConfig = {
   baseUrl: httpClient.API_BASE_URL,
 }
+
+/**
+ * Re-export types
+ */
+export type { UserSettings, AiProvider } from './httpClient'

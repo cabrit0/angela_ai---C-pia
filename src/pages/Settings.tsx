@@ -161,6 +161,11 @@ const Settings: React.FC = () => {
     const newResults: ApiTestResult[] = [];
 
     try {
+      // Check if settings exist
+      if (!settings) {
+        throw new Error('Configurações não carregadas');
+      }
+
       // Test text provider
       if (settings.textProvider === 'pollinations') {
         const result = await testPollinationsConnectivity('text');
