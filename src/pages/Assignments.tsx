@@ -29,11 +29,13 @@ const AssignmentsPage: React.FC = () => {
   const [showEditForm, setShowEditForm] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<ApiAssignment | null>(null);
   const [formData, setFormData] = useState({
+    name: '',
     quizId: '',
     classId: '',
     studentId: '',
     availableFrom: '',
     availableTo: '',
+    allowRetake: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -68,6 +70,10 @@ const AssignmentsPage: React.FC = () => {
 
   const handleCreateAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      setFormError('Nome do assignment é obrigatório.');
+      return;
+    }
     if (!formData.quizId || (!formData.classId && !formData.studentId)) {
       setFormError('Quiz e turma ou aluno são obrigatórios.');
       return;
@@ -78,19 +84,23 @@ const AssignmentsPage: React.FC = () => {
 
     try {
       const newAssignment = await assignmentsApi.create({
+        name: formData.name.trim(),
         quizId: formData.quizId,
         classId: formData.classId || undefined,
         studentId: formData.studentId || undefined,
         availableFrom: formData.availableFrom || undefined,
         availableTo: formData.availableTo || undefined,
+        allowRetake: formData.allowRetake,
       });
       setAssignments([newAssignment, ...assignments]);
       setFormData({
+        name: '',
         quizId: '',
         classId: '',
         studentId: '',
         availableFrom: '',
         availableTo: '',
+        allowRetake: false,
       });
       setShowCreateForm(false);
     } catch (e: any) {
@@ -115,6 +125,7 @@ const AssignmentsPage: React.FC = () => {
       });
       setAssignments(assignments.map(a => a.id === selectedAssignment.id ? updatedAssignment : a));
       setFormData({
+        name: '',
         quizId: '',
         classId: '',
         studentId: '',
@@ -157,6 +168,7 @@ const AssignmentsPage: React.FC = () => {
   const openEditForm = (assignment: ApiAssignment) => {
     setSelectedAssignment(assignment);
     setFormData({
+      name: assignment.name,
       quizId: assignment.quizId,
       classId: assignment.classId || '',
       studentId: assignment.studentId || '',
@@ -196,6 +208,7 @@ const AssignmentsPage: React.FC = () => {
             <button
               onClick={() => {
                 setFormData({
+                  name: '',
                   quizId: '',
                   classId: '',
                   studentId: '',
@@ -254,6 +267,9 @@ const AssignmentsPage: React.FC = () => {
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Nome
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Quiz
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -275,6 +291,11 @@ const AssignmentsPage: React.FC = () => {
                       <tr key={assignment.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {assignment.name}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
                             {getQuizTitle(assignment.quizId)}
                           </div>
                         </td>
@@ -313,13 +334,20 @@ const AssignmentsPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            assignment.isActive
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-                          }`}>
-                            {assignment.isActive ? 'Ativo' : 'Inativo'}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              assignment.isActive
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                            }`}>
+                              {assignment.isActive ? 'Ativo' : 'Inativo'}
+                            </span>
+                            {assignment.allowRetake && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                                Permite refazer
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-2">
@@ -398,6 +426,22 @@ const AssignmentsPage: React.FC = () => {
                     {formError}
                   </div>
                 )}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Nome do Assignment *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Ex: Teste de Matemática - Turma A"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Este nome ajudará a identificar o assignment nos relatórios
+                  </p>
+                </div>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Quiz *
@@ -536,6 +580,22 @@ const AssignmentsPage: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
+                </div>
+                <div className="mb-4">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.allowRetake}
+                      onChange={(e) => setFormData({ ...formData, allowRetake: e.target.checked })}
+                      className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Permitir refazer
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">
+                    Se ativado, os alunos poderão refazer este assignment após completá-lo. Use para exercícios de prática. Desative para testes e avaliações.
+                  </p>
                 </div>
                 <div className="flex justify-end space-x-3">
                   <button

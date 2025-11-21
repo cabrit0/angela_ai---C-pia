@@ -41,13 +41,15 @@ const ClassesPage: React.FC = () => {
     description: '',
   });
   const [enrollData, setEnrollData] = useState({
-    studentEmail: '',
+    searchQuery: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [studentSearchResults, setStudentSearchResults] = useState<any[]>([]);
   const [showStudentSearch, setShowStudentSearch] = useState(false);
   const [searchingStudents, setSearchingStudents] = useState(false);
+  const [selectedStudentEmails, setSelectedStudentEmails] = useState<Set<string>>(new Set());
+  const [enrollingProgress, setEnrollingProgress] = useState<{ current: number; total: number } | null>(null);
 
   useEffect(() => {
     loadClasses();
@@ -154,15 +156,13 @@ const ClassesPage: React.FC = () => {
 
   const handleEnrollStudent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClass || !enrollData.studentEmail.trim()) {
-      setFormError('Email do aluno é obrigatório.');
+    if (!selectedClass) {
+      setFormError('Selecione uma turma.');
       return;
     }
 
-    // Validação básica de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(enrollData.studentEmail.trim())) {
-      setFormError('Por favor, insira um email válido.');
+    if (selectedStudentEmails.size === 0) {
+      setFormError('Selecione pelo menos um aluno.');
       return;
     }
 
@@ -170,16 +170,95 @@ const ClassesPage: React.FC = () => {
     setFormError(null);
 
     try {
-      await classesApi.enrollStudentByEmail(selectedClass.id, enrollData.studentEmail.trim());
-      setEnrollData({ studentEmail: '' });
+      const emailsArray = Array.from(selectedStudentEmails);
+      let successCount = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < emailsArray.length; i++) {
+        const email = emailsArray[i];
+        try {
+          await classesApi.enrollStudentByEmail(selectedClass.id, email);
+          successCount++;
+        } catch (e: any) {
+          errors.push(`${email}: ${e?.message || 'Erro desconhecido'}`);
+        }
+        setEnrollingProgress({ current: i + 1, total: emailsArray.length });
+      }
+
+      setEnrollingProgress(null);
+      setEnrollData({ searchQuery: '' });
+      setSelectedStudentEmails(new Set());
+      setShowStudentSearch(false);
+      setStudentSearchResults([]);
       setShowEnrollForm(false);
+
       // Recarregar alunos da turma
       await loadStudents(selectedClass.id);
+
+      if (errors.length > 0) {
+        setFormError(`${successCount} aluno(s) inscrito(s) com sucesso. Erros: ${errors.join('; ')}`);
+      } else {
+        // Success message will be shown by reloading students
+      }
     } catch (e: any) {
-      setFormError(e?.message || 'Não foi possível inscrever o aluno.');
+      setFormError(e?.message || 'Não foi possível inscrever os alunos.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSearchStudents = async () => {
+    if (!enrollData.searchQuery.trim()) {
+      setFormError('Digite um termo para buscar alunos');
+      return;
+    }
+
+    setSearchingStudents(true);
+    setFormError(null);
+    try {
+      const results = await usersApi.searchStudentsByEmail(enrollData.searchQuery.trim());
+      setStudentSearchResults(results);
+      setShowStudentSearch(true);
+    } catch (e: any) {
+      setFormError(e?.message || 'Erro ao buscar alunos');
+    } finally {
+      setSearchingStudents(false);
+    }
+  };
+
+  const handleSearchAllStudents = async () => {
+    setSearchingStudents(true);
+    setFormError(null);
+    try {
+      // Buscar com string vazia para retornar todos os alunos
+      const results = await usersApi.searchStudentsByEmail('');
+      setStudentSearchResults(results);
+      setShowStudentSearch(true);
+      setEnrollData({ ...enrollData, searchQuery: '' });
+    } catch (e: any) {
+      setFormError(e?.message || 'Erro ao buscar alunos');
+    } finally {
+      setSearchingStudents(false);
+    }
+  };
+
+  const handleToggleStudent = (email: string) => {
+    const newSelected = new Set(selectedStudentEmails);
+    if (newSelected.has(email)) {
+      newSelected.delete(email);
+    } else {
+      newSelected.add(email);
+    }
+    setSelectedStudentEmails(newSelected);
+  };
+
+  const handleSelectAllStudents = () => {
+    const allEmails = new Set(studentSearchResults.map(s => s.email));
+    setSelectedStudentEmails(allEmails);
+  };
+
+  const handleDeselectAllStudents = () => {
+    setSelectedStudentEmails(new Set());
   };
 
   const openEditForm = (classItem: ApiClass) => {
@@ -620,83 +699,118 @@ const ClassesPage: React.FC = () => {
                 )}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email do Aluno
+                    Buscar Alunos
                   </label>
-                  <input
-                    type="email"
-                    value={enrollData.studentEmail}
-                    onChange={(e) => setEnrollData({ ...enrollData, studentEmail: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="email@exemplo.com"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Digite o email do aluno que deseja inscrever na turma
-                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={enrollData.searchQuery}
+                      onChange={(e) => setEnrollData({ ...enrollData, searchQuery: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSearchStudents();
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
+                      placeholder="Nome ou email do aluno"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearchStudents}
+                      disabled={searchingStudents}
+                      className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
+                    >
+                      {searchingStudents ? 'Buscando...' : 'Buscar'}
+                    </button>
+                  </div>
                   <div className="mt-2">
                     <button
                       type="button"
-                      onClick={async () => {
-                        if (!enrollData.studentEmail.trim()) {
-                          setFormError('Digite um email para buscar alunos');
-                          return;
-                        }
-                        
-                        setSearchingStudents(true);
-                        setFormError(null);
-                        try {
-                          const results = await usersApi.searchStudentsByEmail(enrollData.studentEmail.trim());
-                          setStudentSearchResults(results);
-                          setShowStudentSearch(true);
-                        } catch (e: any) {
-                          setFormError(e?.message || 'Erro ao buscar alunos');
-                        } finally {
-                          setSearchingStudents(false);
-                        }
-                      }}
+                      onClick={handleSearchAllStudents}
                       disabled={searchingStudents}
                       className="text-sm text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 disabled:opacity-50"
                     >
-                      {searchingStudents ? 'Buscando...' : 'Buscar alunos'}
+                      {searchingStudents ? 'Buscando...' : 'Buscar Todos os Alunos'}
                     </button>
                   </div>
-                  
+
                   {/* Student Search Results */}
                   {showStudentSearch && (
-                    <div className="mt-3 p-3 border border-gray-200 dark:border-gray-600 rounded-md max-h-32 overflow-y-auto">
+                    <div className="mt-3 p-3 border border-gray-200 dark:border-gray-600 rounded-md">
                       {studentSearchResults.length === 0 ? (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Nenhum aluno encontrado com este email
+                          Nenhum aluno encontrado
                         </p>
                       ) : (
-                        <div className="space-y-2">
-                          {studentSearchResults.map((student) => (
-                            <button
-                              key={student.id}
-                              type="button"
-                              onClick={() => {
-                                setEnrollData({ studentEmail: student.email });
-                                setShowStudentSearch(false);
-                                setStudentSearchResults([]);
-                              }}
-                              className="w-full text-left p-2 text-sm bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
-                            >
-                              <div className="font-medium text-gray-900 dark:text-white">{student.name}</div>
-                              <div className="text-gray-500 dark:text-gray-400">{student.email}</div>
-                            </button>
-                          ))}
-                        </div>
+                        <>
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {studentSearchResults.length} aluno(s) encontrado(s)
+                              {selectedStudentEmails.size > 0 && (
+                                <span className="ml-2 px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-xs">
+                                  {selectedStudentEmails.size} selecionado(s)
+                                </span>
+                              )}
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={handleSelectAllStudents}
+                                className="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400"
+                              >
+                                Selecionar Todos
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleDeselectAllStudents}
+                                className="text-xs text-gray-600 hover:text-gray-800 dark:text-gray-400"
+                              >
+                                Limpar Seleção
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-1 max-h-64 overflow-y-auto">
+                            {studentSearchResults.map((student) => (
+                              <label
+                                key={student.id}
+                                className="flex items-center p-2 text-sm bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedStudentEmails.has(student.email)}
+                                  onChange={() => handleToggleStudent(student.email)}
+                                  className="mr-3 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                />
+                                <div className="flex-1">
+                                  <div className="font-medium text-gray-900 dark:text-white">{student.name}</div>
+                                  <div className="text-gray-500 dark:text-gray-400 text-xs">{student.email}</div>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        </>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowStudentSearch(false);
-                          setStudentSearchResults([]);
-                        }}
-                        className="mt-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                      >
-                        Fechar busca
-                      </button>
+                    </div>
+                  )}
+
+                  {/* Enrolling Progress */}
+                  {enrollingProgress && (
+                    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-blue-800 dark:text-blue-200">
+                          A inscrever alunos...
+                        </span>
+                        <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                          {enrollingProgress.current} de {enrollingProgress.total}
+                        </span>
+                      </div>
+                      <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(enrollingProgress.current / enrollingProgress.total) * 100}%` }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -707,6 +821,10 @@ const ClassesPage: React.FC = () => {
                       setShowEnrollForm(false);
                       setFormError(null);
                       setSelectedClass(null);
+                      setSelectedStudentEmails(new Set());
+                      setShowStudentSearch(false);
+                      setStudentSearchResults([]);
+                      setEnrollData({ searchQuery: '' });
                     }}
                     className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
                   >
@@ -714,10 +832,12 @@ const ClassesPage: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || selectedStudentEmails.size === 0}
                     className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                   >
-                    {isSubmitting ? 'A inscrever...' : 'Inscrever Aluno'}
+                    {isSubmitting
+                      ? 'A inscrever...'
+                      : `Inscrever ${selectedStudentEmails.size} Aluno(s)`}
                   </button>
                 </div>
               </form>

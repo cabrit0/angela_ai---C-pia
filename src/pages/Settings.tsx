@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
-import type { AppSettings, ApiTestResult, AiProvider } from '../types/settings';
+import type { ApiTestResult, AiProvider } from '../types/settings';
 import {
-  loadSettings,
-  saveSettings,
-  saveHuggingFaceToken,
-  saveMistralToken,
   testPollinationsConnectivity,
   testHuggingFaceConnectivity,
   testMistralConnectivity,
@@ -14,6 +10,7 @@ import {
   getApiTestResults
 } from '../lib/utils/storage';
 import { validateToken, getBestPractices } from '../lib/api/apiConfig';
+import { userSettingsApi, type UserSettings } from '../lib/api';
 import AiProviderSelector from '../components/AiProviderSelector';
 import ApiKeyInput from '../components/ApiKeyInput';
 import PrivacyNotice from '../components/PrivacyNotice';
@@ -65,13 +62,15 @@ const SparklesIcon = () => (
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [settings, setSettings] = useState<AppSettings>(loadSettings());
-  const [huggingFaceToken, setHuggingFaceToken] = useState<string>(settings.huggingFaceToken || '');
-  const [mistralToken, setMistralToken] = useState<string>(settings.mistralToken || '');
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [huggingFaceToken, setHuggingFaceToken] = useState<string>('');
+  const [mistralToken, setMistralToken] = useState<string>('');
   const [isTesting, setIsTesting] = useState(false);
   const [testResults, setTestResults] = useState<ApiTestResult[]>([]);
   const [showTestResults, setShowTestResults] = useState(false);
   const [activeTab, setActiveTab] = useState<'providers' | 'keys' | 'test' | 'info'>('info');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Check if user is a student and redirect them
   useEffect(() => {
@@ -81,35 +80,80 @@ const Settings: React.FC = () => {
     }
   }, [user, navigate]);
 
+  // Load settings from backend
+  useEffect(() => {
+    const loadUserSettings = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await userSettingsApi.get();
+        setSettings(data);
+        setHuggingFaceToken(data.huggingFaceToken || '');
+        setMistralToken(data.mistralToken || '');
+      } catch (err: any) {
+        console.error('Erro ao carregar configurações:', err);
+        setError('Erro ao carregar configurações. Tente novamente.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user) {
+      loadUserSettings();
+    }
+  }, [user]);
+
   useEffect(() => {
     const results = getApiTestResults();
     setTestResults(results);
   }, []);
 
-  const handleTextProviderChange = (provider: AiProvider) => {
-    const newSettings = { ...settings, textProvider: provider };
-    setSettings(newSettings);
-    saveSettings(newSettings);
+  const handleTextProviderChange = async (provider: AiProvider) => {
+    if (!settings) return;
+    try {
+      const updated = await userSettingsApi.update({ textProvider: provider });
+      setSettings(updated);
+    } catch (err: any) {
+      console.error('Erro ao atualizar textProvider:', err);
+      setError('Erro ao atualizar configuração. Tente novamente.');
+    }
   };
 
-  const handleImageProviderChange = (provider: AiProvider) => {
-    const newSettings = { ...settings, imageProvider: provider };
-    setSettings(newSettings);
-    saveSettings(newSettings);
+  const handleImageProviderChange = async (provider: AiProvider) => {
+    if (!settings) return;
+    try {
+      const updated = await userSettingsApi.update({ imageProvider: provider });
+      setSettings(updated);
+    } catch (err: any) {
+      console.error('Erro ao atualizar imageProvider:', err);
+      setError('Erro ao atualizar configuração. Tente novamente.');
+    }
   };
 
-  const handleTokenChange = (token: string) => {
+  const handleTokenChange = async (token: string) => {
     setHuggingFaceToken(token);
-    saveHuggingFaceToken(token);
-    const newSettings = { ...settings, huggingFaceToken: token };
-    setSettings(newSettings);
+    try {
+      const updated = await userSettingsApi.update({
+        huggingFaceToken: token || null
+      });
+      setSettings(updated);
+    } catch (err: any) {
+      console.error('Erro ao salvar token HuggingFace:', err);
+      setError('Erro ao salvar token. Tente novamente.');
+    }
   };
 
-  const handleMistralTokenChange = (token: string) => {
+  const handleMistralTokenChange = async (token: string) => {
     setMistralToken(token);
-    saveMistralToken(token);
-    const newSettings = { ...settings, mistralToken: token };
-    setSettings(newSettings);
+    try {
+      const updated = await userSettingsApi.update({
+        mistralToken: token || null
+      });
+      setSettings(updated);
+    } catch (err: any) {
+      console.error('Erro ao salvar token Mistral:', err);
+      setError('Erro ao salvar token. Tente novamente.');
+    }
   };
 
   const testConnectivity = async () => {
@@ -232,9 +276,29 @@ const Settings: React.FC = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Animated tab content container:
-            - Keep settings-tab-transition for fade/slide
-            - Do NOT enforce fixed/overflow heights so all tab content (incl. "Informações") remains visible */}
+        {/* Error Message */}
+        {error && (
+          <div className="max-w-4xl mx-auto mb-6 bg-red-50 border border-red-200 rounded-lg p-4 dark:bg-red-900/20 dark:border-red-800">
+            <div className="flex items-center space-x-2">
+              <ExclamationIcon />
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 p-8 dark:bg-gray-800 dark:border-gray-700">
+            <div className="flex items-center justify-center space-x-3">
+              <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-gray-600 dark:text-gray-400">Carregando configurações...</p>
+            </div>
+          </div>
+        ) : !settings ? (
+          <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 p-8 dark:bg-gray-800 dark:border-gray-700">
+            <p className="text-center text-gray-600 dark:text-gray-400">Erro ao carregar configurações.</p>
+          </div>
+        ) : (
         <div key={activeTab} className="settings-tab-transition">
         {/* Providers Tab */}
         {activeTab === 'providers' && (
@@ -701,11 +765,11 @@ const Settings: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Armazenamento:</span>
-                    <span>Local no navegador</span>
+                    <span>Servidor (seguro)</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Última atualização:</span>
-                    <span>{formatTimestamp(settings.updatedAt)}</span>
+                    <span>{settings.updatedAt ? new Date(settings.updatedAt).toLocaleString('pt-PT') : 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -716,6 +780,7 @@ const Settings: React.FC = () => {
           </div>
         )}
         </div>
+        )}
       </div>
     </div>
   );

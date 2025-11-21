@@ -265,26 +265,58 @@ const Create: React.FC = () => {
     }
 
     try {
-      await createQuestionApi(currentQuizId, questionData);
-      const refreshed = await getQuizQuestions(currentQuizId);
+      // If quiz is local, add question to local state only
+      if (isLocallySaved || currentQuizId.startsWith('local_')) {
+        const newQuestion: Question = {
+          id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          ...questionData,
+        };
 
-      // Update both local state and global store
-      setQuizData(prev => ({
-        ...prev,
-        questions: refreshed,
-      }));
+        // Update local state
+        setQuizData(prev => ({
+          ...prev,
+          questions: [...(prev.questions || []), newQuestion],
+        }));
 
-      // Also update the quiz in the global store to keep it in sync
-      const currentQuiz = quizzes.find(q => q.id === currentQuizId);
-      if (currentQuiz) {
-        editQuiz(currentQuizId, { questions: refreshed });
+        // Update global store
+        const currentQuiz = quizzes.find(q => q.id === currentQuizId);
+        if (currentQuiz) {
+          const updatedQuestions = [...(currentQuiz.questions || []), newQuestion];
+          editQuiz(currentQuizId, { questions: updatedQuestions });
+
+          // Save to localStorage
+          const updatedQuizzes = quizzes.map(q =>
+            q.id === currentQuizId
+              ? { ...q, questions: updatedQuestions }
+              : q
+          );
+          saveQuizzes(updatedQuizzes);
+        }
+
+        showNotification('Pergunta adicionada com sucesso!', 'success');
+      } else {
+        // Quiz is in backend, use API
+        await createQuestionApi(currentQuizId, questionData);
+        const refreshed = await getQuizQuestions(currentQuizId);
+
+        // Update both local state and global store
+        setQuizData(prev => ({
+          ...prev,
+          questions: refreshed,
+        }));
+
+        // Also update the quiz in the global store to keep it in sync
+        const currentQuiz = quizzes.find(q => q.id === currentQuizId);
+        if (currentQuiz) {
+          editQuiz(currentQuizId, { questions: refreshed });
+        }
+
+        showNotification('Pergunta adicionada com sucesso!', 'success');
       }
-
-      showNotification('Pergunta adicionada com sucesso!', 'success');
     } catch (error: any) {
       console.error('[API] Erro ao adicionar pergunta:', error);
       showNotification(
-        error?.message || 'Não foi possível adicionar a pergunta na API. Tente novamente.',
+        error?.message || 'Não foi possível adicionar a pergunta. Tente novamente.',
         'error'
       );
     }
@@ -292,18 +324,49 @@ const Create: React.FC = () => {
 
   const handleEditQuestion = async (questionId: string, questionData: Omit<Question, 'id'>) => {
     if (!currentQuizId) return;
+
     try {
-      await updateQuestionApi(currentQuizId, questionId, questionData);
-      const refreshed = await getQuizQuestions(currentQuizId);
-      setQuizData(prev => ({
-        ...prev,
-        questions: refreshed,
-      }));
-      showNotification('Pergunta atualizada com sucesso!', 'success');
+      // If quiz is local, update question in local state only
+      if (isLocallySaved || currentQuizId.startsWith('local_')) {
+        const updatedQuestions = (quizData.questions || []).map(q =>
+          q.id === questionId ? { ...q, ...questionData } : q
+        );
+
+        // Update local state
+        setQuizData(prev => ({
+          ...prev,
+          questions: updatedQuestions,
+        }));
+
+        // Update global store
+        const currentQuiz = quizzes.find(q => q.id === currentQuizId);
+        if (currentQuiz) {
+          editQuiz(currentQuizId, { questions: updatedQuestions });
+
+          // Save to localStorage
+          const updatedQuizzes = quizzes.map(q =>
+            q.id === currentQuizId
+              ? { ...q, questions: updatedQuestions }
+              : q
+          );
+          saveQuizzes(updatedQuizzes);
+        }
+
+        showNotification('Pergunta atualizada com sucesso!', 'success');
+      } else {
+        // Quiz is in backend, use API
+        await updateQuestionApi(currentQuizId, questionId, questionData);
+        const refreshed = await getQuizQuestions(currentQuizId);
+        setQuizData(prev => ({
+          ...prev,
+          questions: refreshed,
+        }));
+        showNotification('Pergunta atualizada com sucesso!', 'success');
+      }
     } catch (error: any) {
       console.error('[API] Erro ao atualizar pergunta:', error);
       showNotification(
-        error?.message || 'Não foi possível atualizar a pergunta na API.',
+        error?.message || 'Não foi possível atualizar a pergunta.',
         'error'
       );
     }
@@ -313,17 +376,45 @@ const Create: React.FC = () => {
     if (!currentQuizId) return;
 
     try {
-      await deleteQuestionApi(currentQuizId, questionId);
-      const refreshed = await getQuizQuestions(currentQuizId);
-      setQuizData(prev => ({
-        ...prev,
-        questions: refreshed,
-      }));
-      showNotification('Pergunta removida com sucesso!', 'info');
+      // If quiz is local, remove question from local state only
+      if (isLocallySaved || currentQuizId.startsWith('local_')) {
+        const updatedQuestions = (quizData.questions || []).filter(q => q.id !== questionId);
+
+        // Update local state
+        setQuizData(prev => ({
+          ...prev,
+          questions: updatedQuestions,
+        }));
+
+        // Update global store
+        const currentQuiz = quizzes.find(q => q.id === currentQuizId);
+        if (currentQuiz) {
+          editQuiz(currentQuizId, { questions: updatedQuestions });
+
+          // Save to localStorage
+          const updatedQuizzes = quizzes.map(q =>
+            q.id === currentQuizId
+              ? { ...q, questions: updatedQuestions }
+              : q
+          );
+          saveQuizzes(updatedQuizzes);
+        }
+
+        showNotification('Pergunta removida com sucesso!', 'info');
+      } else {
+        // Quiz is in backend, use API
+        await deleteQuestionApi(currentQuizId, questionId);
+        const refreshed = await getQuizQuestions(currentQuizId);
+        setQuizData(prev => ({
+          ...prev,
+          questions: refreshed,
+        }));
+        showNotification('Pergunta removida com sucesso!', 'info');
+      }
     } catch (error: any) {
       console.error('[API] Erro ao remover pergunta:', error);
       showNotification(
-        error?.message || 'Não foi possível remover a pergunta na API.',
+        error?.message || 'Não foi possível remover a pergunta.',
         'error'
       );
     }
@@ -470,7 +561,8 @@ const Create: React.FC = () => {
     }
 
     try {
-      questions.forEach((question, questionIndex) => {
+      // Normalize all questions first
+      const normalizedQuestions: Question[] = questions.map((question, questionIndex) => {
         const { id: _discarded, ...questionWithoutId } = question as Question & { id?: string };
         const normalizedChoices = questionWithoutId.choices?.map((choice, choiceIndex) => ({
           id: choice.id || `${Date.now()}-${questionIndex}-${choiceIndex}`,
@@ -488,7 +580,8 @@ const Create: React.FC = () => {
           ? questionWithoutId.orderingItems.map(item => item?.trim()).filter(Boolean)
           : undefined;
 
-        const payload: Omit<Question, 'id'> = {
+        return {
+          id: `temp-${Date.now()}-${questionIndex}`,
           ...questionWithoutId,
           prompt: question.prompt.trim(),
           choices: normalizedChoices,
@@ -500,30 +593,58 @@ const Create: React.FC = () => {
               : (question.type === 'short' || question.type === 'gapfill' || question.type === 'essay'
                   ? String(question.answer ?? '').trim()
                   : question.answer)
-        };
-
-        // Persist via API
-        void (async () => {
-          try {
-            await createQuestionApi(currentQuizId, payload);
-            
-            // After persisting, refresh questions from API and update both local and global state
-            const refreshed = await getQuizQuestions(currentQuizId);
-            setQuizData(prev => ({
-              ...prev,
-              questions: refreshed,
-            }));
-
-            // Also update the quiz in the global store
-            const currentQuiz = quizzes.find(q => q.id === currentQuizId);
-            if (currentQuiz) {
-              editQuiz(currentQuizId, { questions: refreshed });
-            }
-          } catch (error) {
-            console.error('[API] Erro ao persistir pergunta gerada por IA:', error);
-          }
-        })();
+        } as Question;
       });
+
+      // Add questions to local state immediately
+      setQuizData(prev => ({
+        ...prev,
+        questions: [...(prev.questions || []), ...normalizedQuestions],
+      }));
+
+      // Update global store
+      const currentQuiz = quizzes.find(q => q.id === currentQuizId);
+      if (currentQuiz) {
+        editQuiz(currentQuizId, {
+          questions: [...(currentQuiz.questions || []), ...normalizedQuestions]
+        });
+      }
+
+      // If quiz is not local, persist to backend
+      if (!isLocallySaved && currentQuizId && !currentQuizId.startsWith('local_')) {
+        normalizedQuestions.forEach((question) => {
+          const { id: _discarded, ...questionWithoutId } = question;
+
+          void (async () => {
+            try {
+              await createQuestionApi(currentQuizId, questionWithoutId);
+
+              // After all questions are persisted, refresh from API
+              const refreshed = await getQuizQuestions(currentQuizId);
+              setQuizData(prev => ({
+                ...prev,
+                questions: refreshed,
+              }));
+
+              // Also update the quiz in the global store
+              const currentQuiz = quizzes.find(q => q.id === currentQuizId);
+              if (currentQuiz) {
+                editQuiz(currentQuizId, { questions: refreshed });
+              }
+            } catch (error) {
+              console.error('[API] Erro ao persistir pergunta gerada por IA:', error);
+            }
+          })();
+        });
+      } else {
+        // For local quizzes, save to localStorage
+        const updatedQuizzes = quizzes.map(q =>
+          q.id === currentQuizId
+            ? { ...q, questions: [...(q.questions || []), ...normalizedQuestions] }
+            : q
+        );
+        saveQuizzes(updatedQuizzes);
+      }
 
       setShowAiPanel(false);
       showNotification(`${questions.length} perguntas adicionadas com sucesso!`, 'success');

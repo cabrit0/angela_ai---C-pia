@@ -39,7 +39,7 @@ const SharedQuizzesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showShareForm, setShowShareForm] = useState(false);
   const [formData, setFormData] = useState({
-    sharedWithTeacherEmail: '',
+    searchQuery: '',
     canEdit: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,6 +48,8 @@ const SharedQuizzesPage: React.FC = () => {
   const [teacherSearchResults, setTeacherSearchResults] = useState<any[]>([]);
   const [showTeacherSearch, setShowTeacherSearch] = useState(false);
   const [searchingTeachers, setSearchingTeachers] = useState(false);
+  const [selectedTeacherEmails, setSelectedTeacherEmails] = useState<Set<string>>(new Set());
+  const [sharingProgress, setSharingProgress] = useState<{ current: number; total: number } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -78,35 +80,63 @@ const SharedQuizzesPage: React.FC = () => {
 
   const handleShareQuiz = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedQuiz || !formData.sharedWithTeacherEmail.trim()) {
-      setFormError('Quiz e email do professor são obrigatórios.');
+    if (!selectedQuiz) {
+      setFormError('Selecione um quiz para compartilhar.');
       return;
     }
 
-    // Validação básica de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.sharedWithTeacherEmail.trim())) {
-      setFormError('Por favor, insira um email válido.');
+    if (selectedTeacherEmails.size === 0) {
+      setFormError('Selecione pelo menos um professor para compartilhar.');
       return;
     }
 
     setIsSubmitting(true);
     setFormError(null);
+    setSharingProgress({ current: 0, total: selectedTeacherEmails.size });
+
+    const errors: string[] = [];
+    let successCount = 0;
 
     try {
-      await sharesApi.shareQuizByEmail(selectedQuiz.id, formData.sharedWithTeacherEmail.trim(), formData.canEdit);
-      
+      const emailsArray = Array.from(selectedTeacherEmails);
+
+      for (let i = 0; i < emailsArray.length; i++) {
+        const email = emailsArray[i];
+        try {
+          await sharesApi.shareQuizByEmail(selectedQuiz.id, email, formData.canEdit);
+          successCount++;
+        } catch (e: any) {
+          errors.push(`${email}: ${e?.message || 'Erro desconhecido'}`);
+        }
+        setSharingProgress({ current: i + 1, total: emailsArray.length });
+      }
+
       // Recarregar dados
       const sharesData = await sharesApi.listSharesForQuiz(selectedQuiz.id);
       setMyShares(sharesData);
-      
-      setFormData({ sharedWithTeacherEmail: '', canEdit: false });
-      setShowShareForm(false);
-      setSelectedQuiz(null);
+
+      // Mostrar resultado
+      if (errors.length === 0) {
+        setFormError(null);
+        alert(`Quiz compartilhado com sucesso com ${successCount} professor(es)!`);
+      } else {
+        setFormError(`Compartilhado com ${successCount} professor(es). Erros:\n${errors.join('\n')}`);
+      }
+
+      // Limpar seleção se tudo correu bem
+      if (errors.length === 0) {
+        setFormData({ searchQuery: '', canEdit: false });
+        setSelectedTeacherEmails(new Set());
+        setTeacherSearchResults([]);
+        setShowTeacherSearch(false);
+        setShowShareForm(false);
+        setSelectedQuiz(null);
+      }
     } catch (e: any) {
       setFormError(e?.message || 'Não foi possível compartilhar o quiz.');
     } finally {
       setIsSubmitting(false);
+      setSharingProgress(null);
     }
   };
 
@@ -137,9 +167,67 @@ const SharedQuizzesPage: React.FC = () => {
 
   const openShareForm = (quiz: Quiz) => {
     setSelectedQuiz(quiz);
-    setFormData({ sharedWithTeacherEmail: '', canEdit: false });
+    setFormData({ searchQuery: '', canEdit: false });
+    setSelectedTeacherEmails(new Set());
+    setTeacherSearchResults([]);
+    setShowTeacherSearch(false);
     setShowShareForm(true);
     setFormError(null);
+  };
+
+  const handleSearchTeachers = async () => {
+    const query = formData.searchQuery.trim();
+    if (!query) {
+      setFormError('Digite um termo de busca (nome ou email)');
+      return;
+    }
+
+    setSearchingTeachers(true);
+    setFormError(null);
+    try {
+      const results = await usersApi.searchTeachersByEmail(query);
+      setTeacherSearchResults(results);
+      setShowTeacherSearch(true);
+    } catch (e: any) {
+      setFormError(e?.message || 'Erro ao buscar professores');
+    } finally {
+      setSearchingTeachers(false);
+    }
+  };
+
+  const handleSearchAllTeachers = async () => {
+    setSearchingTeachers(true);
+    setFormError(null);
+    try {
+      // Buscar com string vazia para retornar todos os professores
+      const results = await usersApi.searchTeachersByEmail('');
+      setTeacherSearchResults(results);
+      setShowTeacherSearch(true);
+      setFormData({ ...formData, searchQuery: '' });
+    } catch (e: any) {
+      setFormError(e?.message || 'Erro ao buscar professores');
+    } finally {
+      setSearchingTeachers(false);
+    }
+  };
+
+  const handleToggleTeacher = (email: string) => {
+    const newSelected = new Set(selectedTeacherEmails);
+    if (newSelected.has(email)) {
+      newSelected.delete(email);
+    } else {
+      newSelected.add(email);
+    }
+    setSelectedTeacherEmails(newSelected);
+  };
+
+  const handleSelectAllTeachers = () => {
+    const allEmails = new Set(teacherSearchResults.map(t => t.email));
+    setSelectedTeacherEmails(allEmails);
+  };
+
+  const handleDeselectAllTeachers = () => {
+    setSelectedTeacherEmails(new Set());
   };
 
   const loadQuizShares = async (quizId: string) => {
@@ -399,95 +487,111 @@ const SharedQuizzesPage: React.FC = () => {
                 )}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email do Professor Destinatário
+                    Buscar Professores
                   </label>
-                  <input
-                    type="email"
-                    value={formData.sharedWithTeacherEmail}
-                    onChange={(e) => setFormData({ ...formData, sharedWithTeacherEmail: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="email@exemplo.com"
-                    required
-                  />
-                  <div className="mt-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.searchQuery}
+                      onChange={(e) => setFormData({ ...formData, searchQuery: e.target.value })}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSearchTeachers();
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
+                      placeholder="Digite nome ou email..."
+                    />
                     <button
                       type="button"
-                      onClick={() => {
-                        // Simular busca de professores - em uma implementação real, isso chamaria uma API
-                        alert('Funcionalidade de busca de professores será implementada com a integração da base de dados.')
-                      }}
-                      className="text-sm text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
+                      onClick={handleSearchTeachers}
+                      disabled={searchingTeachers}
+                      className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Buscar professores disponíveis
+                      {searchingTeachers ? 'Buscando...' : 'Buscar'}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Digite o email do professor que deseja compartilhar o quiz
-                  </p>
-                  <div className="mt-2">
+                  <div className="mt-2 flex gap-2">
                     <button
                       type="button"
-                      onClick={async () => {
-                        if (!formData.sharedWithTeacherEmail.trim()) {
-                          setFormError('Digite um email para buscar professores');
-                          return;
-                        }
-                        
-                        setSearchingTeachers(true);
-                        setFormError(null);
-                        try {
-                          const results = await usersApi.searchTeachersByEmail(formData.sharedWithTeacherEmail.trim());
-                          setTeacherSearchResults(results);
-                          setShowTeacherSearch(true);
-                        } catch (e: any) {
-                          setFormError(e?.message || 'Erro ao buscar professores');
-                        } finally {
-                          setSearchingTeachers(false);
-                        }
-                      }}
+                      onClick={handleSearchAllTeachers}
                       disabled={searchingTeachers}
                       className="text-sm text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 disabled:opacity-50"
                     >
-                      {searchingTeachers ? 'Buscando...' : 'Buscar professores'}
+                      Buscar Todos os Professores
                     </button>
                   </div>
-                  
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Busque professores por nome ou email, ou clique em "Buscar Todos" para ver todos os professores disponíveis
+                  </p>
+
                   {/* Teacher Search Results */}
                   {showTeacherSearch && (
-                    <div className="mt-3 p-3 border border-gray-200 dark:border-gray-600 rounded-md max-h-32 overflow-y-auto">
+                    <div className="mt-3 p-3 border border-gray-200 dark:border-gray-600 rounded-md">
                       {teacherSearchResults.length === 0 ? (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Nenhum professor encontrado com este email
+                          Nenhum professor encontrado
                         </p>
                       ) : (
-                        <div className="space-y-2">
-                          {teacherSearchResults.map((teacher) => (
-                            <button
-                              key={teacher.id}
-                              type="button"
-                              onClick={() => {
-                                setFormData({ ...formData, sharedWithTeacherEmail: teacher.email });
-                                setShowTeacherSearch(false);
-                                setTeacherSearchResults([]);
-                              }}
-                              className="w-full text-left p-2 text-sm bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
-                            >
-                              <div className="font-medium text-gray-900 dark:text-white">{teacher.name}</div>
-                              <div className="text-gray-500 dark:text-gray-400">{teacher.email}</div>
-                            </button>
-                          ))}
-                        </div>
+                        <>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              {teacherSearchResults.length} professor(es) encontrado(s)
+                              {selectedTeacherEmails.size > 0 && ` - ${selectedTeacherEmails.size} selecionado(s)`}
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={handleSelectAllTeachers}
+                                className="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
+                              >
+                                Selecionar Todos
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleDeselectAllTeachers}
+                                className="text-xs text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+                              >
+                                Limpar Seleção
+                              </button>
+                            </div>
+                          </div>
+                          <div className="max-h-64 overflow-y-auto space-y-1">
+                            {teacherSearchResults.map((teacher) => (
+                              <label
+                                key={teacher.id}
+                                className="flex items-start p-2 text-sm bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTeacherEmails.has(teacher.email)}
+                                  onChange={() => handleToggleTeacher(teacher.email)}
+                                  className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                />
+                                <div className="ml-2 flex-1">
+                                  <div className="font-medium text-gray-900 dark:text-white">{teacher.name}</div>
+                                  <div className="text-gray-500 dark:text-gray-400">{teacher.email}</div>
+                                  {teacher.role === 'ADMIN' && (
+                                    <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 rounded">
+                                      Administrador
+                                    </span>
+                                  )}
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowTeacherSearch(false);
+                            }}
+                            className="mt-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                          >
+                            Fechar lista
+                          </button>
+                        </>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowTeacherSearch(false);
-                          setTeacherSearchResults([]);
-                        }}
-                        className="mt-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                      >
-                        Fechar busca
-                      </button>
                     </div>
                   )}
                 </div>
@@ -504,9 +608,38 @@ const SharedQuizzesPage: React.FC = () => {
                     </span>
                   </label>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Se marcado, o professor destinatário poderá editar o quiz
+                    Se marcado, os professores selecionados poderão editar o quiz
                   </p>
                 </div>
+
+                {/* Sharing Progress */}
+                {sharingProgress && (
+                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        Compartilhando...
+                      </span>
+                      <span className="text-sm text-blue-700 dark:text-blue-300">
+                        {sharingProgress.current} de {sharingProgress.total}
+                      </span>
+                    </div>
+                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(sharingProgress.current / sharingProgress.total) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Selected Teachers Summary */}
+                {selectedTeacherEmails.size > 0 && !sharingProgress && (
+                  <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                    <p className="text-sm text-green-900 dark:text-green-100">
+                      <strong>{selectedTeacherEmails.size}</strong> professor(es) selecionado(s) para compartilhamento
+                    </p>
+                  </div>
+                )}
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"
@@ -514,17 +647,26 @@ const SharedQuizzesPage: React.FC = () => {
                       setShowShareForm(false);
                       setFormError(null);
                       setSelectedQuiz(null);
+                      setSelectedTeacherEmails(new Set());
+                      setTeacherSearchResults([]);
+                      setShowTeacherSearch(false);
                     }}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                    disabled={isSubmitting || selectedTeacherEmails.size === 0}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? 'A compartilhar...' : 'Compartilhar Quiz'}
+                    {isSubmitting
+                      ? 'A compartilhar...'
+                      : selectedTeacherEmails.size > 0
+                        ? `Compartilhar com ${selectedTeacherEmails.size} Professor(es)`
+                        : 'Compartilhar Quiz'
+                    }
                   </button>
                 </div>
               </form>

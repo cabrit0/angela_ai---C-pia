@@ -98,8 +98,19 @@ const StudentProgress: React.FC = () => {
     })
   }
 
-  const handleStartQuiz = (quizId: string) => {
-    navigate(`/quiz/${quizId}`)
+  const handleStartQuiz = async (quizId: string, assignmentId: string) => {
+    try {
+      // Import attemptsApi
+      const { attemptsApi } = await import('../lib/api')
+
+      console.log('[StudentProgress] Starting quiz:', quizId, 'assignment:', assignmentId)
+      const attempt = await attemptsApi.start(quizId, assignmentId)
+      console.log('[StudentProgress] Attempt created:', attempt.id)
+      navigate(`/quiz/${quizId}`, { state: { assignmentId, attemptId: attempt.id } })
+    } catch (error: any) {
+      console.error('[StudentProgress] Error starting quiz:', error)
+      alert('Erro ao iniciar o quiz: ' + (error.message || 'Tente novamente.'))
+    }
   }
 
   if (isLoading) {
@@ -213,7 +224,7 @@ const StudentProgress: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
-                            onClick={() => handleStartQuiz(attempt.quizId)}
+                            onClick={() => handleStartQuiz(attempt.quizId, attempt.assignmentId)}
                             className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                           >
                             Refazer
@@ -227,8 +238,8 @@ const StudentProgress: React.FC = () => {
             </div>
           ) : (
             <EmptyState
-              onCreateNew={() => navigate('/')}
-              onImport={() => {}}
+              message="Nenhum quiz concluído"
+              description="Complete quizzes atribuídos pelo seu professor para ver o seu progresso aqui."
             />
           )}
         </div>

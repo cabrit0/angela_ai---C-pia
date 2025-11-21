@@ -89,13 +89,18 @@ function Results() {
           try {
             const attempt = await attemptsApi.getById(state.attemptId)
             if (attempt) {
-              // Calculate score from answers since ApiAttempt doesn't have score field
-              const answeredQuestions = Object.keys(attempt.answers || {}).length
-              const totalQuestions = state.totalQuestions || answeredQuestions
+              // Use actual score and maxScore from the attempt
+              const actualScore = attempt.score ?? 0
+              const actualMaxScore = attempt.maxScore ?? state.totalQuestions ?? 0
+              const actualPercentage = actualMaxScore > 0
+                ? Math.round((actualScore / actualMaxScore) * 100)
+                : 0
+
               setResultData(prev => ({
                 ...prev,
-                score: answeredQuestions, // For now, count answered questions as score
-                percentage: Math.round((answeredQuestions / totalQuestions) * 100)
+                score: actualScore,
+                totalQuestions: actualMaxScore,
+                percentage: actualPercentage
               }))
             }
           } catch (error) {
@@ -122,13 +127,18 @@ function Results() {
               try {
                 const attempt = await attemptsApi.getById(parsed.attemptId)
                 if (attempt) {
-                  // Calculate score from answers since ApiAttempt doesn't have score field
-                  const answeredQuestions = Object.keys(attempt.answers || {}).length
-                  const totalQuestions = parsed.totalQuestions || answeredQuestions
+                  // Use actual score and maxScore from the attempt
+                  const actualScore = attempt.score ?? 0
+                  const actualMaxScore = attempt.maxScore ?? parsed.totalQuestions ?? 0
+                  const actualPercentage = actualMaxScore > 0
+                    ? Math.round((actualScore / actualMaxScore) * 100)
+                    : 0
+
                   setResultData(prev => ({
                     ...prev,
-                    score: answeredQuestions, // For now, count answered questions as score
-                    percentage: Math.round((answeredQuestions / totalQuestions) * 100)
+                    score: actualScore,
+                    totalQuestions: actualMaxScore,
+                    percentage: actualPercentage
                   }))
                 }
               } catch (error) {

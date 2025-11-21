@@ -5,7 +5,7 @@
  * delegando a lógica real para o httpClient centralizado.
  *
  * IMPORTANTE:
- * - Toda a comunicação com o backend Angela Quiz deve passar por aqui
+ * - Toda a comunicação com o backend Kwiz deve passar por aqui
  *   ou por httpClient, nunca diretamente a partir de componentes.
  */
 
@@ -64,6 +64,11 @@ import {
   searchUsersByEmail,
   searchTeachersByEmail,
   searchStudentsByEmail,
+  // User Settings
+  getUserSettings,
+  updateUserSettings,
+  type UserSettings,
+  type AiProvider,
 } from './httpClient'
 
 /**
@@ -354,6 +359,29 @@ export const usersApi = {
    * Alinha com GET /api/users/students/search?email={email}
    */
   searchStudentsByEmail: (email: string) => searchStudentsByEmail(email),
+}
+
+/**
+ * USER SETTINGS
+ * Funções para gerenciar configurações do usuário (AI providers e tokens)
+ */
+export const userSettingsApi = {
+  /**
+   * Obtém configurações do usuário autenticado
+   * Alinha com GET /api/users/settings
+   */
+  get: () => getUserSettings(),
+
+  /**
+   * Atualiza configurações do usuário autenticado
+   * Alinha com PUT /api/users/settings
+   */
+  update: (input: {
+    textProvider?: AiProvider
+    imageProvider?: AiProvider
+    huggingFaceToken?: string | null
+    mistralToken?: string | null
+  }) => updateUserSettings(input),
 }
 
 /**

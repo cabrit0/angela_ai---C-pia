@@ -145,21 +145,20 @@ const AiTextPanel: React.FC<AiTextPanelProps> = ({
     { value: 'Avançado', label: 'Nível Avançado' }
   ];
 
-  // Verificar status do provedor ao montar o componente
-  useEffect(() => {
-    checkProviderStatus();
-  }, [currentProvider, huggingFaceToken, mistralToken]);
+  // Removido: teste automático causava muitas requisições à API
+  // O status do provedor será verificado apenas quando o usuário gerar perguntas
 
   const checkProviderStatus = async () => {
+    setProviderStatus({ success: false, message: 'Testando conexão...' });
     try {
       const token = currentProvider === 'huggingface' ? huggingFaceToken :
                     currentProvider === 'mistral' ? mistralToken : undefined;
       const status = await testProviderConnection(currentProvider, token);
       setProviderStatus(status);
-    } catch (error) {
+    } catch (error: any) {
       setProviderStatus({
         success: false,
-        message: 'Não foi possível verificar o estado do provedor.'
+        message: error.message || 'Não foi possível verificar o estado do provedor.'
       });
     }
   };
@@ -533,7 +532,16 @@ const AiTextPanel: React.FC<AiTextPanelProps> = ({
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Gerar perguntas com IA</h2>
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {providerStatus && (
+          {hasValidProvider && (
+            <button
+              onClick={checkProviderStatus}
+              disabled={providerStatus?.message === 'Testando conexão...'}
+              className="text-xs px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {providerStatus?.message === 'Testando conexão...' ? 'Testando...' : 'Testar Conexão'}
+            </button>
+          )}
+          {providerStatus && providerStatus.message !== 'Testando conexão...' && (
             <div className={`text-sm px-2 py-1 rounded transition-colors duration-200 ${
               providerStatus.success
                 ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'

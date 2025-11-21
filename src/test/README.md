@@ -1,6 +1,6 @@
 # Testes Unitários
 
-Este diretório contém os testes unitários para os novos componentes do Angela Quiz.
+Este diretório contém os testes unitários para os novos componentes do Kwiz.
 
 ## Estrutura dos Testes
 

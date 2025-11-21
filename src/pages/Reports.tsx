@@ -161,6 +161,14 @@ const ReportsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
+
+  // Student tab specific search states
+  const [studentTabClassSearch, setStudentTabClassSearch] = useState('')
+  const [studentTabStudentSearch, setStudentTabStudentSearch] = useState('')
+  const [studentTabQuizSearch, setStudentTabQuizSearch] = useState('')
+  const [showStudentTabClassDropdown, setShowStudentTabClassDropdown] = useState(false)
+  const [showStudentTabStudentDropdown, setShowStudentTabStudentDropdown] = useState(false)
+  const [showStudentTabQuizDropdown, setShowStudentTabQuizDropdown] = useState(false)
   
   // Filter states
   const [dateFilter, setDateFilter] = useState({
@@ -222,25 +230,24 @@ const ReportsPage: React.FC = () => {
   // Load students when a class is selected
   useEffect(() => {
     const loadStudents = async () => {
+      console.log('[Reports] useEffect loadStudents - selectedClass:', selectedClass, 'activeTab:', activeTab)
       if (selectedClass && (activeTab === 'class' || activeTab === 'student')) {
         try {
+          console.log('[Reports] Carregando estudantes da turma:', selectedClass)
           const studentsData = await classesApi.getStudents(selectedClass)
+          console.log('[Reports] Estudantes carregados:', studentsData)
           setStudents(studentsData)
         } catch (error) {
-          console.error('Error loading students:', error)
-          // Fallback to mock data if API fails
-          const mockStudents = [
-            { id: 'student1', name: 'João Silva', email: 'joao@exemplo.com' },
-            { id: 'student2', name: 'Maria Santos', email: 'maria@exemplo.com' },
-            { id: 'student3', name: 'Pedro Costa', email: 'pedro@exemplo.com' },
-            { id: 'student4', name: 'Ana Oliveira', email: 'ana@exemplo.com' },
-            { id: 'student5', name: 'Carlos Ferreira', email: 'carlos@exemplo.com' },
-          ]
-          setStudents(mockStudents)
+          console.error('[Reports] Erro ao carregar estudantes:', error)
+          setStudents([])
         }
+      } else if (!selectedClass && activeTab === 'student') {
+        // Clear students if no class is selected in student tab
+        console.log('[Reports] Limpando estudantes (sem turma selecionada)')
+        setStudents([])
       }
     }
-    
+
     loadStudents()
   }, [selectedClass, activeTab])
 
@@ -302,20 +309,31 @@ const ReportsPage: React.FC = () => {
       setError('Por favor, selecione um estudante')
       return
     }
-    
+
+    console.log('[Reports] Buscando tentativas para:', {
+      selectedStudent,
+      selectedQuiz,
+      selectedClass
+    })
+
     setLoading(true)
     setError(null)
-    
+
     try {
       const attempts = await statisticsApi.getStudentAttempts(selectedStudent, selectedQuiz || undefined)
+      console.log('[Reports] Tentativas recebidas:', attempts)
       setStudentAttempts(attempts)
+
+      if (attempts.length === 0) {
+        setError('Nenhuma tentativa encontrada para este aluno.')
+      }
     } catch (err: any) {
+      console.error('[Reports] Erro ao buscar tentativas:', err)
       if (err.code === 404) {
         setError('Endpoint de tentativas de estudante não encontrado (404). Verifique se o servidor foi atualizado com a implementação mais recente.')
       } else {
-        setError('Erro ao carregar tentativas do estudante. Tente novamente.')
+        setError(`Erro ao carregar tentativas do estudante: ${err.message || 'Tente novamente.'}`)
       }
-      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -525,7 +543,9 @@ const ReportsPage: React.FC = () => {
   const filteredAssignments = assignments.filter(assignment => {
     const quiz = quizzes.find(q => q.id === assignment.quizId)
     const quizTitle = quiz ? quiz.title : 'Quiz Desconhecido'
-    return quizTitle.toLowerCase().includes(searchTerm.toLowerCase())
+    const assignmentName = assignment.name || ''
+    return quizTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           assignmentName.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
 
@@ -1242,10 +1262,102 @@ const ReportsPage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Class Selection */}
+                <div className="grid grid-cols-1 gap-4 mb-4">
+                  <div className="relative">
+                    <div className="reports-search-icon">
+                      <SearchIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Selecionar turma..."
+                      value={studentTabClassSearch}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setStudentTabClassSearch(value)
+                        if (!value) {
+                          setSelectedClass('')
+                        }
+                      }}
+                      onFocus={() => setShowStudentTabClassDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowStudentTabClassDropdown(false), 200)}
+                      className="input reports-search-input"
+                    />
+
+                    {/* Dropdown for class selection */}
+                    {showStudentTabClassDropdown && studentTabClassSearch && (
+                      <div className="reports-dropdown">
+                        {classes.filter(c => c.name.toLowerCase().includes(studentTabClassSearch.toLowerCase())).length === 0 ? (
+                          <div className="reports-empty-state">
+                            Nenhuma turma encontrada
+                          </div>
+                        ) : (
+                          classes.filter(c => c.name.toLowerCase().includes(studentTabClassSearch.toLowerCase())).map((cls) => (
+                            <button
+                              key={cls.id}
+                              onClick={() => {
+                                console.log('[Reports] Turma selecionada na aba Tentativas do Aluno:', cls.id, cls.name)
+                                setSelectedClass(cls.id)
+                                setStudentTabClassSearch(cls.name)
+                                setShowStudentTabClassDropdown(false)
+                                setSelectedStudent('') // Reset student selection
+                                setStudentTabStudentSearch('') // Reset student search
+                              }}
+                              className={`reports-dropdown-item ${
+                                selectedClass === cls.id
+                                  ? 'reports-dropdown-item-selected'
+                                  : 'reports-dropdown-item-not-selected'
+                              }`}
+                            >
+                              <div>
+                                <div className="font-medium">{cls.name}</div>
+                              </div>
+                              {selectedClass === cls.id && (
+                                <CheckIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Selected Class Info */}
+                {selectedClass && (
+                  <div className="reports-selected-info reports-selected-info-blue mb-4">
+                    <div className="reports-selected-info-content">
+                      <div>
+                        <p className="reports-selected-info-label text-blue-800 dark:text-blue-200">Turma selecionada:</p>
+                        <p className="reports-selected-info-value text-blue-600 dark:text-blue-300">
+                          {classes.find(c => c.id === selectedClass)?.name || 'Turma Desconhecida'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedClass('')
+                          setStudentTabClassSearch('')
+                          setSelectedStudent('')
+                          setStudentTabStudentSearch('')
+                        }}
+                        className="reports-close-button reports-close-button-blue"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {(() => {
+                  console.log('[Reports] Renderizando seleção de aluno - selectedClass:', selectedClass, 'students.length:', students.length, 'activeTab:', activeTab)
+                  return null
+                })()}
                 {!selectedClass ? (
                   <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                     <p className="text-yellow-800 dark:text-yellow-200 text-sm">
-                      ℹ️ Selecione uma turma primeiro na aba "Estatísticas da Turma" para ver os alunos.
+                      ℹ️ Selecione uma turma acima para ver os alunos.
                     </p>
                   </div>
                 ) : students.length === 0 ? (
@@ -1265,30 +1377,46 @@ const ReportsPage: React.FC = () => {
                       <input
                         type="text"
                         placeholder="Buscar aluno..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onFocus={() => setShowDropdown(true)}
+                        value={studentTabStudentSearch}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          setStudentTabStudentSearch(value)
+                          if (!value) {
+                            setSelectedStudent('')
+                          }
+                        }}
+                        onFocus={() => setShowStudentTabStudentDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowStudentTabStudentDropdown(false), 200)}
                         className="input reports-search-input"
                       />
-                   
+
                     {/* Dropdown for student selection */}
-                    {showDropdown && searchTerm && (
+                    {showStudentTabStudentDropdown && studentTabStudentSearch && (
                       <div className="reports-dropdown">
-                        {filteredStudents.length === 0 ? (
+                        {students.filter(s =>
+                          s.name.toLowerCase().includes(studentTabStudentSearch.toLowerCase()) ||
+                          s.email.toLowerCase().includes(studentTabStudentSearch.toLowerCase())
+                        ).length === 0 ? (
                           <div className="reports-empty-state">
                             Nenhum aluno encontrado
                           </div>
                         ) : (
-                          filteredStudents.map((student) => (
+                          students.filter(s =>
+                            s.name.toLowerCase().includes(studentTabStudentSearch.toLowerCase()) ||
+                            s.email.toLowerCase().includes(studentTabStudentSearch.toLowerCase())
+                          ).map((student) => (
                             <button
-                              key={student.id}
+                              key={student.id || student._id}
                               onClick={() => {
-                                setSelectedStudent(student.id)
-                                setSearchTerm(student.name)
-                                setShowDropdown(false)
+                                console.log('[Reports] Objeto student completo:', student)
+                                const studentId = student.id || student._id
+                                console.log('[Reports] Aluno selecionado - ID:', studentId, 'Nome:', student.name)
+                                setSelectedStudent(studentId)
+                                setStudentTabStudentSearch(student.name)
+                                setShowStudentTabStudentDropdown(false)
                               }}
                               className={`reports-dropdown-item ${
-                                selectedStudent === student.id
+                                selectedStudent === (student.id || student._id)
                                   ? 'reports-dropdown-item-selected'
                                   : 'reports-dropdown-item-not-selected'
                               }`}
@@ -1299,7 +1427,7 @@ const ReportsPage: React.FC = () => {
                                   {student.email}
                                 </div>
                               </div>
-                              {selectedStudent === student.id && (
+                              {selectedStudent === (student.id || student._id) && (
                                 <CheckIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
                               )}
                             </button>
@@ -1307,7 +1435,7 @@ const ReportsPage: React.FC = () => {
                         )}
                       </div>
                     )}
-    
+
                   </div>
                  
                   {/* Quiz Selection (Optional) */}
@@ -1318,26 +1446,61 @@ const ReportsPage: React.FC = () => {
                     <input
                       type="text"
                       placeholder="Quiz (opcional)"
-                      value={selectedQuiz ? quizzes.find(q => q.id === selectedQuiz)?.title || '' : ''}
+                      value={studentTabQuizSearch}
                       onChange={(e) => {
                         const value = e.target.value
-                        setSearchTerm(value)
-                        const quiz = quizzes.find(q => q.title.toLowerCase().includes(value.toLowerCase()))
-                        if (quiz) {
-                          setSelectedQuiz(quiz.id)
-                        } else {
+                        setStudentTabQuizSearch(value)
+                        if (!value) {
                           setSelectedQuiz('')
                         }
                       }}
-                      onFocus={() => setShowDropdown(true)}
+                      onFocus={() => setShowStudentTabQuizDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowStudentTabQuizDropdown(false), 200)}
                       className="input reports-search-input"
                     />
+
+                    {/* Dropdown for quiz selection */}
+                    {showStudentTabQuizDropdown && studentTabQuizSearch && (
+                      <div className="reports-dropdown">
+                        {quizzes.filter(q => q.title.toLowerCase().includes(studentTabQuizSearch.toLowerCase())).length === 0 ? (
+                          <div className="reports-empty-state">
+                            Nenhum quiz encontrado
+                          </div>
+                        ) : (
+                          quizzes.filter(q => q.title.toLowerCase().includes(studentTabQuizSearch.toLowerCase())).map((quiz) => (
+                            <button
+                              key={quiz.id}
+                              onClick={() => {
+                                setSelectedQuiz(quiz.id)
+                                setStudentTabQuizSearch(quiz.title)
+                                setShowStudentTabQuizDropdown(false)
+                              }}
+                              className={`reports-dropdown-item ${
+                                selectedQuiz === quiz.id
+                                  ? 'reports-dropdown-item-selected'
+                                  : 'reports-dropdown-item-not-selected'
+                              }`}
+                            >
+                              <div>
+                                <div className="font-medium">{quiz.title}</div>
+                              </div>
+                              {selectedQuiz === quiz.id && (
+                                <CheckIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
-                      onClick={handleGetStudentAttempts}
+                      onClick={() => {
+                        console.log('[Reports] Botão clicado. selectedStudent:', selectedStudent, 'selectedClass:', selectedClass)
+                        handleGetStudentAttempts()
+                      }}
                       disabled={loading || !selectedStudent}
                       className="btn btn-primary btn-hover-bounce"
                     >
@@ -1360,15 +1523,40 @@ const ReportsPage: React.FC = () => {
                       <div>
                         <p className="reports-selected-info-label text-green-800 dark:text-green-200">Aluno selecionado:</p>
                         <p className="reports-selected-info-value text-green-600 dark:text-green-300">
-                          {students.find(s => s.id === selectedStudent)?.name || 'Aluno Desconhecido'}
+                          {students.find(s => (s.id || s._id) === selectedStudent)?.name || 'Aluno Desconhecido'}
                         </p>
                       </div>
                       <button
                         onClick={() => {
                           setSelectedStudent('')
-                          setSearchTerm('')
+                          setStudentTabStudentSearch('')
                         }}
                         className="reports-close-button reports-close-button-green"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Selected Quiz Info (Optional) */}
+                {selectedQuiz && (
+                  <div className="reports-selected-info reports-selected-info-purple">
+                    <div className="reports-selected-info-content">
+                      <div>
+                        <p className="reports-selected-info-label text-purple-800 dark:text-purple-200">Quiz selecionado (filtro):</p>
+                        <p className="reports-selected-info-value text-purple-600 dark:text-purple-300">
+                          {quizzes.find(q => q.id === selectedQuiz)?.title || 'Quiz Desconhecido'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedQuiz('')
+                          setStudentTabQuizSearch('')
+                        }}
+                        className="reports-close-button reports-close-button-purple"
                       >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1513,12 +1701,13 @@ const ReportsPage: React.FC = () => {
                         filteredAssignments.map((assignment) => {
                           const quiz = quizzes.find(q => q.id === assignment.quizId)
                           const quizTitle = quiz ? quiz.title : 'Quiz Desconhecido'
+                          const assignmentName = assignment.name || quizTitle
                           return (
                             <button
                               key={assignment.id}
                               onClick={() => {
                                 setSelectedAssignment(assignment.id)
-                                setSearchTerm(quizTitle)
+                                setSearchTerm(assignmentName)
                                 setShowDropdown(false)
                               }}
                               className={`reports-dropdown-item ${
@@ -1528,9 +1717,10 @@ const ReportsPage: React.FC = () => {
                               }`}
                             >
                               <div>
-                                <div className="font-medium">{quizTitle}</div>
+                                <div className="font-medium">{assignmentName}</div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  {assignment.classId ? `Turma: ${classes.find(c => c.id === assignment.classId)?.name || 'Desconhecida'}` : 'Atribuição individual'}
+                                  Quiz: {quizTitle}
+                                  {assignment.classId ? ` • Turma: ${classes.find(c => c.id === assignment.classId)?.name || 'Desconhecida'}` : ' • Atribuição individual'}
                                   {assignment.isActive ? ' • Ativo' : ' • Inativo'}
                                 </div>
                               </div>
@@ -1554,7 +1744,7 @@ const ReportsPage: React.FC = () => {
                           {(() => {
                             const assignment = assignments.find(a => a.id === selectedAssignment)
                             const quiz = quizzes.find(q => q.id === assignment?.quizId)
-                            return quiz ? quiz.title : 'Assignment Desconhecido'
+                            return assignment?.name || (quiz ? quiz.title : 'Assignment Desconhecido')
                           })()}
                         </p>
                       </div>

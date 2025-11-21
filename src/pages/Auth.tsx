@@ -133,7 +133,7 @@ const AuthPage: React.FC = () => {
         <div className="space-y-6">
           <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary-100/70 text-primary-700 text-xs font-semibold tracking-wide shadow-sm">
             <span className="w-2 h-2 rounded-full bg-primary-500 mr-2 animate-pulse"></span>
-            Plataforma Angela Quiz
+            Plataforma Kwiz
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">
             Entre na sua área
@@ -171,7 +171,7 @@ const AuthPage: React.FC = () => {
               </p>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 {mode === 'login'
-                  ? 'Inicie sessão na Angela Quiz'
+                  ? 'Inicie sessão no Kwiz'
                   : 'Registe-se como Professor'}
               </h2>
             </div>

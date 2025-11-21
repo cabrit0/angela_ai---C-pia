@@ -370,6 +370,7 @@ export interface ApiQuizQuestion {
 
 export interface ApiAssignment {
   id: string
+  name: string
   quizId: string
   classId?: string | null
   studentId?: string | null
@@ -879,6 +880,7 @@ export async function getAssignmentById(id: string) {
 }
 
 export async function createAssignmentApi(input: {
+  name: string
   quizId: string
   classId?: string
   studentId?: string
@@ -1301,4 +1303,48 @@ function mapQuestionToApiPayload(question: Omit<Question, 'id'>): Record<string,
   }
 
   return payload
+}
+
+/**
+ * USER SETTINGS
+ */
+
+export type AiProvider = 'pollinations' | 'huggingface' | 'mistral'
+
+export interface UserSettings {
+  id?: string
+  userId: string
+  textProvider: AiProvider
+  imageProvider: AiProvider
+  huggingFaceToken?: string
+  mistralToken?: string
+  updatedAt?: string
+  createdAt?: string
+}
+
+/**
+ * Get current user's settings
+ * GET /api/users/settings
+ */
+export async function getUserSettings(): Promise<UserSettings> {
+  return requestWithAuthRetry<UserSettings>(`${API_BASE_URL}/api/users/settings`, {
+    method: 'GET',
+  })
+}
+
+/**
+ * Update current user's settings
+ * PUT /api/users/settings
+ */
+export async function updateUserSettings(input: {
+  textProvider?: AiProvider
+  imageProvider?: AiProvider
+  huggingFaceToken?: string | null
+  mistralToken?: string | null
+}): Promise<UserSettings> {
+  return requestWithAuthRetry<UserSettings>(`${API_BASE_URL}/api/users/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
 }

@@ -421,7 +421,9 @@ async function generateWithMistral(params: GenerateQuestionsParams): Promise<Que
       if (response.status === 401) {
         throw new Error('Chave de API do Mistral inválida ou expirada. Verifique sua chave em console.mistral.ai/api-keys');
       } else if (response.status === 429) {
-        throw new Error('Limite de taxa da API Mistral excedido. Tente novamente em alguns minutos.');
+        const retryAfter = response.headers.get('retry-after');
+        const waitTime = retryAfter ? `${retryAfter} segundos` : 'alguns minutos';
+        throw new Error(`Limite de requisições da API Mistral excedido. Aguarde ${waitTime} antes de tentar novamente. Se você está usando o plano gratuito, considere adicionar créditos em console.mistral.ai/billing`);
       } else if (response.status === 400) {
         throw new Error(`Parâmetros inválidos: ${errorData.error?.message || errorData.error || 'Verifique sua chave e permissões'}`);
       } else if (response.status === 404) {

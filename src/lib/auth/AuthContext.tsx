@@ -10,7 +10,7 @@ import React, {
 import { httpClient, login as apiLogin, logout as apiLogout } from '../api/httpClient';
 import type { AuthUser as ApiAuthUser } from '../api/httpClient';
 
-const AUTH_USER_KEY = 'angela_auth_user';
+const AUTH_USER_KEY = 'kwiz_auth_user';
 
 function loadStoredUser(): AuthUser | null {
   if (typeof window === 'undefined') return null;
