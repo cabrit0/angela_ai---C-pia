@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { publicSharesApi } from '../lib/api';
 import SecondaryNav from '../components/SecondaryNav';
-import type { PublicShareRequest } from '../types';
 
 const AdminPublicShares: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);

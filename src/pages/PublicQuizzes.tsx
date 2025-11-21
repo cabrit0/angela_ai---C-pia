@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicSharesApi, sharesApi } from '../lib/api';
 import SecondaryNav from '../components/SecondaryNav';
-import type { Quiz } from '../types';
 
 const PublicQuizzes: React.FC = () => {
   const navigate = useNavigate();

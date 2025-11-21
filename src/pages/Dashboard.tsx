@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
 import { classesApi, assignmentsApi, sharesApi, publicSharesApi } from '../lib/api';
 import SecondaryNav from '../components/SecondaryNav';
@@ -111,7 +111,6 @@ const DashboardPage: React.FC = () => {
 
   const isTeacher = user?.role === 'TEACHER' || user?.role === 'ADMIN';
   const isStudent = user?.role === 'STUDENT';
-  const isAdmin = user?.role === 'ADMIN';
 
   const handleCreateClassSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
