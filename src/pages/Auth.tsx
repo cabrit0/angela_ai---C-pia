@@ -167,12 +167,12 @@ const AuthPage: React.FC = () => {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-400">
-                {mode === 'login' ? 'Aceder à conta' : 'Criar conta de professor'}
+                {mode === 'login' ? 'Aceder à conta' : 'Criar nova conta'}
               </p>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 {mode === 'login'
                   ? 'Inicie sessão no Kwiz'
-                  : 'Registe-se como Professor'}
+                  : 'Registe-se no Kwiz'}
               </h2>
             </div>
             <div className="flex flex-col items-end text-[10px] text-gray-500 dark:text-gray-400">
@@ -204,7 +204,7 @@ const AuthPage: React.FC = () => {
                   : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100'
               }`}
             >
-              Sou professor novo
+              Criar nova conta
             </button>
           </div>
 
@@ -358,12 +358,11 @@ const AuthPage: React.FC = () => {
                   isSubmitting ? 'opacity-70 cursor-wait' : ''
                 }`}
               >
-                {isSubmitting ? 'A criar conta...' : 'Criar conta de Professor'}
+                {isSubmitting ? 'A criar conta...' : `Criar conta de ${roleOptions.find(r => r.value === registerRole)?.label || 'Utilizador'}`}
               </button>
 
               <p className="text-[10px] text-gray-500 text-center">
-                A conta criada terá role TEACHER conforme o contrato da API. Contas STUDENT e ADMIN são
-                geridas por mecanismos próprios do backend/painel administrativo.
+                Todos os registos passam por validação do administrador antes de terem acesso completo.
               </p>
             </form>
           )}
