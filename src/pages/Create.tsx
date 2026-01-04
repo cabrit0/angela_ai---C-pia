@@ -18,6 +18,7 @@ import {
   updateQuestion as updateQuestionApi,
   deleteQuestion as deleteQuestionApi,
   getQuizQuestions,
+  userSettingsApi,
 } from '../lib/api';
 
 // Icon components
@@ -61,9 +62,9 @@ const Create: React.FC = () => {
   const navigate = useNavigate();
   const { quizzes, editQuiz, loadQuizzes: syncQuizStore } = useQuiz();
   const { user } = useAuth();
-  
+
   // Get user settings
-  const [appSettings, setAppSettings] = useLocalStorage<AppSettings>('quiz-app-settings', {
+  const [appSettings, setAppSettings] = useState<AppSettings>({
     textProvider: 'pollinations',
     imageProvider: 'pollinations',
     updatedAt: Date.now()
@@ -76,26 +77,47 @@ const Create: React.FC = () => {
       return;
     }
   }, [user, navigate]);
-  
-  // Sync settings with storage - run only once
+
+  // Sync settings from backend - run only once
   useEffect(() => {
-    const currentSettings = loadSettings();
-    setAppSettings(currentSettings);
-  }, []);
-  
+    const loadUserSettings = async () => {
+      try {
+        const data = await userSettingsApi.get();
+        if (data) {
+          setAppSettings({
+            textProvider: data.textProvider || 'pollinations',
+            imageProvider: data.imageProvider || 'pollinations',
+            huggingFaceToken: data.huggingFaceToken,
+            mistralToken: data.mistralToken,
+            updatedAt: Date.now()
+          });
+        }
+      } catch (err) {
+        console.error('Erro ao carregar settings do backend:', err);
+        // Fallback to localStorage if API fails (legacy support)
+        const currentSettings = loadSettings();
+        setAppSettings(currentSettings);
+      }
+    };
+
+    if (user) {
+      loadUserSettings();
+    }
+  }, [user]);
+
   const [quizData, setQuizData] = useState<Partial<Quiz>>({
     title: '',
     subject: '',
     grade: '',
     questions: []
   });
-  
+
   const [isQuizSaved, setIsQuizSaved] = useState(false);
   const [currentQuizId, setCurrentQuizId] = useState<string | null>(null);
   const [showAiPanel, setShowAiPanel] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<AiProvider>(appSettings.textProvider);
+  const [selectedProvider, setSelectedProvider] = useState<AiProvider>('pollinations');
   const [isLocallySaved, setIsLocallySaved] = useState(false);
-  
+
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
@@ -108,7 +130,7 @@ const Create: React.FC = () => {
       const newQuizzes = locallySavedQuizzes.filter(localQuiz =>
         !quizzes.some(storeQuiz => storeQuiz.id === localQuiz.id)
       );
-      
+
       if (newQuizzes.length > 0) {
         syncQuizStore([...quizzes, ...newQuizzes]);
         showNotification(`${newQuizzes.length} quiz(es) carregado(s) do armazenamento local.`, 'info');
@@ -134,11 +156,18 @@ const Create: React.FC = () => {
       }
     }
   }, [currentQuizId, quizzes]);
-  
-  // Update selectedProvider when appSettings changes
+
+  // Update selectedProvider based on available tokens and settings
   useEffect(() => {
-    setSelectedProvider(appSettings.textProvider);
-  }, [appSettings.textProvider]);
+    // Prioritize Mistral if token is available
+    if (appSettings.mistralToken) {
+      setSelectedProvider('mistral');
+    } else if (appSettings.huggingFaceToken && appSettings.textProvider === 'huggingface') {
+      setSelectedProvider('huggingface');
+    } else {
+      setSelectedProvider(appSettings.textProvider || 'pollinations');
+    }
+  }, [appSettings]);
 
   const handleQuizSave = async (
     data: Omit<Quiz, 'id' | 'createdAt' | 'updatedAt' | 'questions'> & { youtubeVideos?: string[] }
@@ -213,12 +242,12 @@ const Create: React.FC = () => {
       showNotification('Quiz criado com sucesso! Agora adicione perguntas.', 'success');
     } catch (error: any) {
       console.error('[API] Erro ao criar quiz:', error);
-      
+
       // Fallback to localStorage when API fails
       const localId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setCurrentQuizId(localId);
       setIsLocallySaved(true);
-      
+
       const normalizedSubject = data.subject || '';
       const normalizedGrade = data.grade || '';
 
@@ -246,7 +275,7 @@ const Create: React.FC = () => {
       // Save to localStorage
       const updatedQuizzes = [...quizzes, localQuiz];
       const saveSuccess = saveQuizzes(updatedQuizzes);
-      
+
       if (saveSuccess) {
         syncQuizStore(updatedQuizzes);
         setIsQuizSaved(true);
@@ -481,7 +510,7 @@ const Create: React.FC = () => {
         q.id === currentQuizId ? updatedQuiz : q
       );
       syncQuizStore(updatedQuizzes);
-      
+
       // Save to localStorage to update the flag
       saveQuizzes(updatedQuizzes);
 
@@ -591,8 +620,8 @@ const Create: React.FC = () => {
             question.type === 'ordering'
               ? normalizedOrdering?.join(' -> ')
               : (question.type === 'short' || question.type === 'gapfill' || question.type === 'essay'
-                  ? String(question.answer ?? '').trim()
-                  : question.answer)
+                ? String(question.answer ?? '').trim()
+                : question.answer)
         } as Question;
       });
 
@@ -659,7 +688,7 @@ const Create: React.FC = () => {
     // Create a simple notification element
     const notification = document.createElement('div');
     notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 translate-x-full notification-enter`;
-    
+
     // Set color based on type
     const colors = {
       success: 'bg-green-500 text-white',
@@ -667,7 +696,7 @@ const Create: React.FC = () => {
       warning: 'bg-yellow-500 text-white',
       info: 'bg-blue-500 text-white'
     };
-    
+
     notification.className += ` ${colors[type]}`;
     notification.innerHTML = `
       <div class="flex items-center">
@@ -679,15 +708,15 @@ const Create: React.FC = () => {
         </button>
       </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Animate in
     setTimeout(() => {
       notification.classList.remove('translate-x-full');
       notification.classList.add('translate-x-0');
     }, 100);
-    
+
     // Remove after 3 seconds
     setTimeout(() => {
       notification.classList.add('translate-x-full');
@@ -926,7 +955,7 @@ const Create: React.FC = () => {
                       value={selectedProvider}
                       onChange={setSelectedProvider}
                     />
-                   
+
                     {/* API Key Configuration Alert */}
                     {((selectedProvider === 'huggingface' && !appSettings.huggingFaceToken) ||
                       (selectedProvider === 'mistral' && !appSettings.mistralToken)) && (
@@ -969,7 +998,7 @@ const Create: React.FC = () => {
                           </div>
                         </div>
                       )}
-                   
+
                     <AiTextPanel
                       onQuestionsGenerated={handleAiQuestionsGenerated}
                       currentProvider={selectedProvider}
@@ -1022,12 +1051,12 @@ const Create: React.FC = () => {
                     aiProvider={selectedProvider}
                     aiToken={
                       selectedProvider === 'huggingface' ? appSettings.huggingFaceToken :
-                      selectedProvider === 'mistral' ? appSettings.mistralToken :
-                      ''
+                        selectedProvider === 'mistral' ? appSettings.mistralToken :
+                          ''
                     }
                   />
                 )}
- 
+
                 {/* Question Editor */}
                 <QuestionEditor
                   questions={quizData.questions || []}
@@ -1210,33 +1239,31 @@ const Create: React.FC = () => {
             <button
               onClick={handlePrevStep}
               disabled={currentStep === 1}
-              className={`mobile-optimized-button mobile-pressable px-4 py-2 rounded-lg transition-all duration-300 ${
-                currentStep === 1
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:scale-105 hover:shadow-md mobile-focus-visible'
-              }`}
+              className={`mobile-optimized-button mobile-pressable px-4 py-2 rounded-lg transition-all duration-300 ${currentStep === 1
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:scale-105 hover:shadow-md mobile-focus-visible'
+                }`}
             >
               <div className="flex items-center">
                 <ChevronLeftIcon />
                 <span className="ml-2">Anterior</span>
               </div>
             </button>
-           
+
             {currentStep === 1 && (
               <div className="text-sm text-gray-500 mobile-caption">
                 Preencha as informações básicas para continuar
               </div>
             )}
-           
+
             {currentStep === 2 && (
               <button
                 onClick={handleNextStep}
                 disabled={!quizData.questions || quizData.questions.length === 0}
-                className={`mobile-optimized-button mobile-pressable px-4 py-2 rounded-lg transition-all duration-300 ${
-                  !quizData.questions || quizData.questions.length === 0
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 hover:shadow-md mobile-focus-visible'
-                }`}
+                className={`mobile-optimized-button mobile-pressable px-4 py-2 rounded-lg transition-all duration-300 ${!quizData.questions || quizData.questions.length === 0
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 hover:shadow-md mobile-focus-visible'
+                  }`}
               >
                 <div className="flex items-center">
                   <span className="mr-2">Revisar</span>
