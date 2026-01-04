@@ -16,7 +16,7 @@ export interface GenerateQuestionsParams {
 // Função principal para gerar perguntas
 export async function generateQuestions(params: GenerateQuestionsParams): Promise<Question[]> {
   const { provider } = params;
-  
+
   try {
     switch (provider) {
       case 'pollinations':
@@ -31,7 +31,7 @@ export async function generateQuestions(params: GenerateQuestionsParams): Promis
   } catch (error) {
     // Log error silently for debugging but don't expose technical details to users
     console.error('Erro ao gerar perguntas:', error);
-    
+
     // Return a more user-friendly error message
     throw new Error('Não foi possível gerar perguntas no momento. Tente novamente ou use outro provedor.');
   }
@@ -44,36 +44,36 @@ export async function generateQuestionsWithImages(
   imageToken?: string
 ): Promise<Question[]> {
   const { provider, topic } = params;
-  
+
   try {
     // First generate the questions without images
     const questions = await generateQuestions(params);
-    
+
     // Always use Pollinations for image generation if no image provider is specified
     // This ensures images are generated regardless of the text provider selected
     const finalImageProvider = imageProvider || 'pollinations';
-    
+
     console.log('Generating images for questions using provider:', finalImageProvider);
     console.log('Image token available:', !!imageToken);
     console.log('Text provider:', provider);
-    
+
     try {
       const questionsWithImages = await generateImagesForQuestions(questions, topic, finalImageProvider, imageToken);
       console.log('Images generated successfully for', questionsWithImages.length, 'questions');
-      
+
       // Log each question with its image URL for debugging
       questionsWithImages.forEach((q, index) => {
         console.log(`Question ${index + 1}:`, q.prompt, 'Image URL:', q.imageUrl);
       });
-      
+
       return questionsWithImages;
     } catch (imageError) {
       console.error('Error generating images:', imageError);
-      
+
       // Try to generate images one by one as fallback
       console.log('Attempting to generate images individually as fallback...');
       const questionsWithIndividualImages = [...questions];
-      
+
       for (let i = 0; i < questions.length; i++) {
         try {
           console.log(`Generating image for question ${i + 1}/${questions.length}`);
@@ -83,7 +83,7 @@ export async function generateQuestionsWithImages(
             finalImageProvider,
             imageToken
           );
-          
+
           if (imageUrl) {
             questionsWithIndividualImages[i] = {
               ...questionsWithIndividualImages[i],
@@ -98,14 +98,14 @@ export async function generateQuestionsWithImages(
           // Continue with next question even if this one fails
         }
       }
-      
+
       console.log('Fallback image generation completed');
       return questionsWithIndividualImages;
     }
   } catch (error) {
     // Log error silently for debugging but don't expose technical details to users
     console.error('Erro ao gerar perguntas com imagens:', error);
-    
+
     // Return a more user-friendly error message
     throw new Error('Não foi possível gerar perguntas no momento. Tente novamente ou use outro provedor.');
   }
@@ -114,7 +114,7 @@ export async function generateQuestionsWithImages(
 // Implementação para Pollinations (sem chave, gratuito)
 async function generateWithPollinations(params: GenerateQuestionsParams): Promise<Question[]> {
   const { topic, grade, questionType, count, language } = params;
-  
+
   const prompt = generatePollinationsPrompt({
     topic,
     grade,
@@ -139,7 +139,7 @@ async function generateWithPollinations(params: GenerateQuestionsParams): Promis
           }
         ],
         max_tokens: Math.min(2000, count * 300), // Ajustar tokens baseado no número de perguntas
-        seed: -1 // Garantir resultados consistentes
+        seed: 42 // Seed fixo para resultados consistentes (u32 required)
       })
     });
 
@@ -150,24 +150,24 @@ async function generateWithPollinations(params: GenerateQuestionsParams): Promis
 
     const data = await response.json();
     const generatedText = data.choices?.[0]?.message?.content || '';
-    
+
     if (!generatedText) {
       throw new Error('Resposta vazia da API Pollinations');
     }
 
     const parsedQuestions = parseApiResponse(generatedText, questionType);
-    
+
     // Converter para o formato Question
     return parsedQuestions.map((q, index) => convertToQuestionFormat(q, questionType, index.toString()));
   } catch (error) {
     console.error('Erro na chamada à API Pollinations:', error);
-    
+
     // Tentar fallback com modelo alternativo se houver erro
     if (error instanceof Error && error.message.includes('429')) {
       console.log('Tentando fallback com modelo alternativo...');
       return await generateWithPollinationsFallback(params);
     }
-    
+
     // Return user-friendly error message
     throw new Error('Não foi possível gerar perguntas com Pollinations. Tente novamente mais tarde.');
   }
@@ -176,7 +176,7 @@ async function generateWithPollinations(params: GenerateQuestionsParams): Promis
 // Função de fallback para Pollinations com diferentes parâmetros
 async function generateWithPollinationsFallback(params: GenerateQuestionsParams): Promise<Question[]> {
   const { topic, grade, questionType, count, language } = params;
-  
+
   const prompt = generatePollinationsPrompt({
     topic,
     grade,
@@ -210,13 +210,13 @@ async function generateWithPollinationsFallback(params: GenerateQuestionsParams)
 
     const data = await response.json();
     const generatedText = data.choices?.[0]?.message?.content || '';
-    
+
     if (!generatedText) {
       throw new Error('Resposta vazia do fallback Pollinations');
     }
 
     const parsedQuestions = parseApiResponse(generatedText, questionType);
-    
+
     return parsedQuestions.map((q, index) => convertToQuestionFormat(q, questionType, index.toString()));
   } catch (error) {
     console.error('Erro no fallback Pollinations:', error);
@@ -227,7 +227,7 @@ async function generateWithPollinationsFallback(params: GenerateQuestionsParams)
 // Implementação para Hugging Face (com token gratuito)
 async function generateWithHuggingFace(params: GenerateQuestionsParams): Promise<Question[]> {
   const { topic, grade, questionType, count, language, token } = params;
-  
+
   if (!token) {
     throw new Error('Token do Hugging Face é necessário para usar este serviço');
   }
@@ -263,7 +263,7 @@ async function generateWithHuggingFace(params: GenerateQuestionsParams): Promise
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       if (response.status === 401) {
         throw new Error('Token do Hugging Face inválido ou expirado. Verifique seu token em huggingface.co/settings/tokens');
       } else if (response.status === 429) {
@@ -275,35 +275,35 @@ async function generateWithHuggingFace(params: GenerateQuestionsParams): Promise
       } else if (response.status === 400) {
         throw new Error(`Parâmetros inválidos: ${errorData.error || 'Verifique seu token e permissões'}`);
       }
-      
+
       throw new Error(`Erro na API Hugging Face: ${response.status} ${response.statusText} - ${errorData.error || ''}`);
     }
 
     const data = await response.json();
-    
+
     // Verificar se há erro na resposta
     if (data.error) {
       throw new Error(`Erro do modelo: ${data.error}`);
     }
-    
+
     const generatedText = data?.[0]?.generated_text || '';
-    
+
     if (!generatedText) {
       throw new Error('Resposta vazia da API Hugging Face. Tente novamente.');
     }
 
     const parsedQuestions = parseApiResponse(generatedText, questionType);
-    
+
     // Converter para o formato Question
     return parsedQuestions.map((q, index) => convertToQuestionFormat(q, questionType, index.toString()));
   } catch (error) {
     console.error('Erro na chamada à API Hugging Face:', error);
-    
+
     // Se for erro de modelo indisponível, tentar fallback
     if (error instanceof Error && error.message.includes('503')) {
       return await generateWithHuggingFaceFallback(params);
     }
-    
+
     // Return user-friendly error messages instead of technical details
     if (error instanceof Error) {
       if (error.message.includes('401')) {
@@ -321,7 +321,7 @@ async function generateWithHuggingFace(params: GenerateQuestionsParams): Promise
 // Função de fallback para Hugging Face com modelo alternativo
 async function generateWithHuggingFaceFallback(params: GenerateQuestionsParams): Promise<Question[]> {
   const { topic, grade, questionType, count, language, token } = params;
-  
+
   const prompt = generateHuggingFacePrompt({
     topic,
     grade,
@@ -355,19 +355,19 @@ async function generateWithHuggingFaceFallback(params: GenerateQuestionsParams):
     }
 
     const data = await response.json();
-    
+
     if (data.error) {
       throw new Error(`Erro no modelo fallback: ${data.error}`);
     }
-    
+
     const generatedText = data?.[0]?.generated_text || '';
-    
+
     if (!generatedText) {
       throw new Error('Resposta vazia do fallback Hugging Face');
     }
 
     const parsedQuestions = parseApiResponse(generatedText, questionType);
-    
+
     return parsedQuestions.map((q, index) => convertToQuestionFormat(q, questionType, index.toString()));
   } catch (error) {
     console.error('Erro no fallback Hugging Face:', error);
@@ -378,7 +378,7 @@ async function generateWithHuggingFaceFallback(params: GenerateQuestionsParams):
 // Implementação para Mistral (com chave de API)
 async function generateWithMistral(params: GenerateQuestionsParams): Promise<Question[]> {
   const { topic, grade, questionType, count, language, token } = params;
-  
+
   if (!token) {
     throw new Error('Chave de API do Mistral é necessária para usar este serviço');
   }
@@ -417,7 +417,7 @@ async function generateWithMistral(params: GenerateQuestionsParams): Promise<Que
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       if (response.status === 401) {
         throw new Error('Chave de API do Mistral inválida ou expirada. Verifique sua chave em console.mistral.ai/api-keys');
       } else if (response.status === 429) {
@@ -431,30 +431,30 @@ async function generateWithMistral(params: GenerateQuestionsParams): Promise<Que
       } else if (response.status === 500) {
         throw new Error('Erro interno do servidor Mistral. Tente novamente mais tarde.');
       }
-      
+
       throw new Error(`Erro na API Mistral: ${response.status} ${response.statusText} - ${errorData.error?.message || errorData.error || ''}`);
     }
 
     const data = await response.json();
-    
+
     // Verificar se há erro na resposta
     if (data.error) {
       throw new Error(`Erro do modelo: ${data.error.message || data.error}`);
     }
-    
+
     const generatedText = data.choices?.[0]?.message?.content || '';
-    
+
     if (!generatedText) {
       throw new Error('Resposta vazia da API Mistral. Tente novamente.');
     }
 
     const parsedQuestions = parseApiResponse(generatedText, questionType);
-    
+
     // Converter para o formato Question
     return parsedQuestions.map((q, index) => convertToQuestionFormat(q, questionType, index.toString()));
   } catch (error) {
     console.error('Erro na chamada à API Mistral:', error);
-    
+
     // Se for erro de modelo indisponível, tentar fallback
     if (error instanceof Error && (error.message.includes('model') || error.message.includes('503') || error.message.includes('404'))) {
       try {
@@ -464,7 +464,7 @@ async function generateWithMistral(params: GenerateQuestionsParams): Promise<Que
         return await generateWithMistralLegacyFallback(params);
       }
     }
-    
+
     // Return user-friendly error messages instead of technical details
     if (error instanceof Error) {
       if (error.message.includes('401')) {
@@ -482,7 +482,7 @@ async function generateWithMistral(params: GenerateQuestionsParams): Promise<Que
 // Função de fallback para Mistral com modelo alternativo
 async function generateWithMistralFallback(params: GenerateQuestionsParams): Promise<Question[]> {
   const { topic, grade, questionType, count, language, token } = params;
-  
+
   const prompt = generateHuggingFacePrompt({
     topic,
     grade,
@@ -514,7 +514,7 @@ async function generateWithMistralFallback(params: GenerateQuestionsParams): Pro
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       if (response.status === 401) {
         throw new Error('Chave de API do Mistral inválida. Verifique suas configurações.');
       } else if (response.status === 429) {
@@ -522,24 +522,24 @@ async function generateWithMistralFallback(params: GenerateQuestionsParams): Pro
       } else if (response.status === 404) {
         throw new Error('Modelo alternativo não encontrado. Tente usar outro provedor.');
       }
-      
+
       throw new Error(`Fallback Mistral falhou: ${response.status} - ${errorData.error?.message || errorData.error || response.statusText}`);
     }
 
     const data = await response.json();
-    
+
     if (data.error) {
       throw new Error(`Erro no modelo fallback: ${data.error.message || data.error}`);
     }
-    
+
     const generatedText = data.choices?.[0]?.message?.content || '';
-    
+
     if (!generatedText) {
       throw new Error('Resposta vazia do fallback Mistral');
     }
 
     const parsedQuestions = parseApiResponse(generatedText, questionType);
-    
+
     return parsedQuestions.map((q, index) => convertToQuestionFormat(q, questionType, index.toString()));
   } catch (error) {
     console.error('Erro no fallback Mistral:', error);
@@ -550,7 +550,7 @@ async function generateWithMistralFallback(params: GenerateQuestionsParams): Pro
 // Função de fallback legado para Mistral com modelo mais antigo e estável
 async function generateWithMistralLegacyFallback(params: GenerateQuestionsParams): Promise<Question[]> {
   const { topic, grade, questionType, count, language, token } = params;
-  
+
   const prompt = generateHuggingFacePrompt({
     topic,
     grade,
@@ -586,19 +586,19 @@ async function generateWithMistralLegacyFallback(params: GenerateQuestionsParams
     }
 
     const data = await response.json();
-    
+
     if (data.error) {
       throw new Error(`Erro no modelo legado: ${data.error.message || data.error}`);
     }
-    
+
     const generatedText = data.choices?.[0]?.message?.content || '';
-    
+
     if (!generatedText) {
       throw new Error('Resposta vazia do fallback legado Mistral');
     }
 
     const parsedQuestions = parseApiResponse(generatedText, questionType);
-    
+
     return parsedQuestions.map((q, index) => convertToQuestionFormat(q, questionType, index.toString()));
   } catch (error) {
     console.error('Erro no fallback legado Mistral:', error);
@@ -611,7 +611,7 @@ const ORDERING_SPLIT_REGEX = />|\u2192|\u2794|->|,|;/;
 
 function convertToQuestionFormat(parsed: any, questionType: QType, id: string): Question {
   console.log('convertToQuestionFormat called with:', { parsed, questionType, id });
-  
+
   const baseQuestion = {
     id,
     type: questionType,
@@ -713,7 +713,7 @@ export async function testProviderConnection(provider: AiProvider, token?: strin
     };
 
     await generateQuestions(testParams);
-    
+
     let providerName = '';
     switch (provider) {
       case 'pollinations':
@@ -726,7 +726,7 @@ export async function testProviderConnection(provider: AiProvider, token?: strin
         providerName = 'Mistral';
         break;
     }
-    
+
     return {
       success: true,
       message: `Conexão com ${providerName} estabelecida com sucesso`
@@ -789,7 +789,7 @@ export async function generateSupportText(
   params: GenerateQuestionsParams & { questions?: any[] }
 ): Promise<string> {
   const { provider, topic, grade, language, token, questions } = params;
-  
+
   try {
     switch (provider) {
       case 'pollinations':
@@ -820,7 +820,7 @@ async function generateSupportWithPollinations(
     questionsContext = '\n\nPerguntas do quiz:\n';
     questions.forEach((q, index) => {
       questionsContext += `${index + 1}. ${q.prompt}`;
-      
+
       if (q.type === 'mcq' && q.choices) {
         const optionsText = q.choices.map((c: any) => c.text).join(', ');
         questionsContext += ` (Opções: ${optionsText})`;
@@ -834,7 +834,7 @@ async function generateSupportWithPollinations(
       } else if (q.type === 'ordering' && q.orderingItems) {
         questionsContext += ` (Ordenar: ${q.orderingItems.join(' -> ')})`;
       }
-      
+
       questionsContext += '\n';
     });
   }
@@ -905,7 +905,7 @@ async function generateSupportWithHuggingFace(
     questionsContext = '\n\nPerguntas do quiz:\n';
     questions.forEach((q, index) => {
       questionsContext += `${index + 1}. ${q.prompt}`;
-      
+
       if (q.type === 'mcq' && q.choices) {
         const optionsText = q.choices.map((c: any) => c.text).join(', ');
         questionsContext += ` (Opções: ${optionsText})`;
@@ -919,7 +919,7 @@ async function generateSupportWithHuggingFace(
       } else if (q.type === 'ordering' && q.orderingItems) {
         questionsContext += ` (Ordenar: ${q.orderingItems.join(' -> ')})`;
       }
-      
+
       questionsContext += '\n';
     });
   }
@@ -988,7 +988,7 @@ async function generateSupportWithMistral(
     questionsContext = '\n\nPerguntas do quiz:\n';
     questions.forEach((q, index) => {
       questionsContext += `${index + 1}. ${q.prompt}`;
-      
+
       if (q.type === 'mcq' && q.choices) {
         const optionsText = q.choices.map((c: any) => c.text).join(', ');
         questionsContext += ` (Opções: ${optionsText})`;
@@ -1002,7 +1002,7 @@ async function generateSupportWithMistral(
       } else if (q.type === 'ordering' && q.orderingItems) {
         questionsContext += ` (Ordenar: ${q.orderingItems.join(' -> ')})`;
       }
-      
+
       questionsContext += '\n';
     });
   }
