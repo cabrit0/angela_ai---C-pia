@@ -69,6 +69,7 @@ const Create: React.FC = () => {
     imageProvider: 'pollinations',
     updatedAt: Date.now()
   });
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   // Check if user is a student and redirect them
   useEffect(() => {
@@ -82,7 +83,14 @@ const Create: React.FC = () => {
   useEffect(() => {
     const loadUserSettings = async () => {
       try {
+        console.log('[Create] Loading user settings from backend...');
         const data = await userSettingsApi.get();
+        console.log('[Create] Settings loaded from backend:', {
+          textProvider: data?.textProvider,
+          imageProvider: data?.imageProvider,
+          hasMistralToken: !!data?.mistralToken,
+          hasHuggingFaceToken: !!data?.huggingFaceToken
+        });
         if (data) {
           setAppSettings({
             textProvider: data.textProvider || 'pollinations',
@@ -96,12 +104,17 @@ const Create: React.FC = () => {
         console.error('Erro ao carregar settings do backend:', err);
         // Fallback to localStorage if API fails (legacy support)
         const currentSettings = loadSettings();
+        console.log('[Create] Using localStorage fallback:', currentSettings);
         setAppSettings(currentSettings);
+      } finally {
+        setSettingsLoaded(true);
       }
     };
 
     if (user) {
       loadUserSettings();
+    } else {
+      setSettingsLoaded(true);
     }
   }, [user]);
 
@@ -159,15 +172,27 @@ const Create: React.FC = () => {
 
   // Update selectedProvider based on available tokens and settings
   useEffect(() => {
+    // Only update provider selection after settings have loaded
+    if (!settingsLoaded) return;
+
+    console.log('[Create] Updating provider selection based on settings:', {
+      mistralToken: !!appSettings.mistralToken,
+      huggingFaceToken: !!appSettings.huggingFaceToken,
+      textProvider: appSettings.textProvider
+    });
+
     // Prioritize Mistral if token is available
     if (appSettings.mistralToken) {
+      console.log('[Create] Setting provider to mistral (token available)');
       setSelectedProvider('mistral');
     } else if (appSettings.huggingFaceToken && appSettings.textProvider === 'huggingface') {
+      console.log('[Create] Setting provider to huggingface');
       setSelectedProvider('huggingface');
     } else {
+      console.log('[Create] Setting provider to:', appSettings.textProvider || 'pollinations');
       setSelectedProvider(appSettings.textProvider || 'pollinations');
     }
-  }, [appSettings]);
+  }, [appSettings, settingsLoaded]);
 
   const handleQuizSave = async (
     data: Omit<Quiz, 'id' | 'createdAt' | 'updatedAt' | 'questions'> & { youtubeVideos?: string[] }
@@ -956,8 +981,8 @@ const Create: React.FC = () => {
                       onChange={setSelectedProvider}
                     />
 
-                    {/* API Key Configuration Alert */}
-                    {((selectedProvider === 'huggingface' && !appSettings.huggingFaceToken) ||
+                    {/* API Key Configuration Alert - Only show after settings loaded */}
+                    {settingsLoaded && ((selectedProvider === 'huggingface' && !appSettings.huggingFaceToken) ||
                       (selectedProvider === 'mistral' && !appSettings.mistralToken)) && (
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mobile-optimized-card">
                           <div className="flex mobile-stack">
